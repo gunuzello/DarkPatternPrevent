@@ -1,0 +1,14 @@
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+.env*
+!.env.example
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+scan-results/
+test-results/
+playwright-report/
+src/generated/

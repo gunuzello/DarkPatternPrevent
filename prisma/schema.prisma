@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Scan {
+  id         String    @id
+  scenario   String
+  targetUrl  String
+  status     String
+  createdAt  DateTime  @default(now())
+  reportPath String?
+  findings   Finding[]
+}
+
+model Finding {
+  id          Int    @id @default(autoincrement())
+  scanId      String
+  scan        Scan   @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  type        String
+  status      String
+  stage       String
+  reason      String
+  ruleVersion String
+
+  @@index([scanId])
+}
