@@ -1,3 +1,5 @@
+import { createServer } from "node:http";
+import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
@@ -44,4 +46,35 @@ test("정상 데모에서 사용자가 포장을 선택하면 주문서에 선�
   await page.getByRole("link", { name: "주문서 보기" }).click();
   await expect(page.getByRole("heading", { name: "주문서" })).toBeVisible();
   await expect(page.getByText("표시 합계 23,000원")).toBeVisible();
+});
+
+test("주문서 접근 실패 시 앞 단계의 증거와 사전선택 발견을 유지한다", async ({ browser }, info) => {
+  const server = createServer((request, response) => {
+    response.setHeader("Content-Type", "text/html; charset=utf-8");
+    const path = new URL(request.url!, origin).pathname;
+    if (path.endsWith("/product")) {
+      response.end(`<main data-stage="product">
+        <label><input type="checkbox" checked data-option-won="2000">유료 포장</label>
+        <form action="/demo/risky/cart"><button>장바구니에 담기</button></form>
+      </main>`);
+    } else if (path.endsWith("/cart")) {
+      response.end(`<main data-stage="cart"><a href="/demo/risky/checkout">주문서 보기</a></main>`);
+    } else {
+      response.writeHead(403).end("주문서 접근 제한");
+    }
+  });
+  const listening = once(server, "listening");
+  server.listen(0, "127.0.0.1");
+  await listening;
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("로컬 테스트 서버 시작 실패");
+  try {
+    const report = await scanDemo(browser, "http://127.0.0.1:" + address.port, "risky", info.outputPath("evidence"));
+    expect(report.scanStatus).toBe("PARTIAL");
+    expect(report.snapshots.map(({ stage }) => stage)).toEqual(["product", "cart"]);
+    expect(report.findings.map(({ type }) => type)).toEqual(["PRESELECTION"]);
+    expect(report.snapshots[0].options[0].bounds.width).toBeGreaterThan(0);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
 });

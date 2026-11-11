@@ -11,3 +11,15 @@ label { display: block; background: #f0f5ef; padding: .75rem; border-radius: .5r
 input { accent-color: #185643; }
 ul { padding-left: 1.2rem; }
 a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid #95620d; outline-offset: 3px; }
+.choices { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.field { background: transparent; padding: 0; font-weight: 700; }
+.field input { display: block; width: 100%; box-sizing: border-box; margin-top: .4rem; padding: .75rem; border: 1px solid #637b70; border-radius: .5rem; font: inherit; font-weight: 400; }
+button:disabled { opacity: .65; cursor: wait; }
+progress { width: 100%; accent-color: #185643; }
+.summary { display: flex; flex-wrap: wrap; gap: .75rem; }
+.summary div { flex: 1; padding: 1rem; background: #f0f5ef; border-radius: .5rem; min-width: 4rem; }
+.summary dd { margin: .25rem 0 0; font-size: 1.8rem; font-weight: 700; }
+.target-url { overflow-wrap: anywhere; }
+figure { margin: 1rem 0; }
+figcaption { font-weight: 700; margin-bottom: .5rem; }
+.evidence { display: block; width: 100%; height: auto; border: 1px solid #d9e4da; border-radius: .5rem; }

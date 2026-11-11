@@ -11,21 +11,25 @@ async function capture(page: Page, stage: Stage, directory: string): Promise<Sna
   const options = await main.locator("input[type=checkbox][data-option-won]").evaluateAll((nodes) =>
     nodes.filter((node) => node.checkVisibility({ opacityProperty: true, visibilityProperty: true })).map((node) => {
       const input = node as HTMLInputElement;
+      const { x, y, width, height } = input.getBoundingClientRect();
       return {
         label: Array.from(input.labels ?? [], (label) => label.innerText.trim()).join(" "),
         won: Number(input.dataset.optionWon),
         selected: input.checked,
+        bounds: { x: x + window.scrollX, y: y + window.scrollY, width, height },
       };
     }),
   );
   const fees = await main.locator("[data-fee-id]").evaluateAll((nodes) =>
     nodes.filter((node) => node.checkVisibility({ opacityProperty: true, visibilityProperty: true })).map((node) => {
       const row = node as HTMLElement;
+      const { x, y, width, height } = row.getBoundingClientRect();
       return {
         id: row.dataset.feeId!,
         label: row.innerText.trim(),
         won: Number(row.dataset.won),
         required: row.dataset.required === "true",
+        bounds: { x: x + window.scrollX, y: y + window.scrollY, width, height },
       };
     }),
   );
@@ -35,7 +39,7 @@ async function capture(page: Page, stage: Stage, directory: string): Promise<Sna
   return { stage, url: page.url(), screenshot, priceLines, options, fees };
 }
 
-export async function scanDemo(browser: Browser, origin: string, scenario: Scenario, directory: string) {
+export async function scanDemo(browser: Browser, origin: string, scenario: Scenario, directory: string, onStage?: (snapshot: Snapshot) => Promise<void>) {
   const base = new URL(origin);
   if (base.protocol !== "http:" || base.hostname !== "127.0.0.1" || base.href !== base.origin + "/") {
     throw new Error("데모는 http://127.0.0.1의 로컬 서버만 지원합니다.");
@@ -67,16 +71,28 @@ export async function scanDemo(browser: Browser, origin: string, scenario: Scena
     });
     const page = await context.newPage();
     page.setDefaultTimeout(10_000);
-    const response = await page.goto(targetUrl);
-    if (!response?.ok()) throw new Error("데모 상품 페이지를 불러오지 못했습니다.");
-    const product = await capture(page, "product", directory);
-    await page.getByRole("button", { name: "장바구니에 담기", exact: true }).click();
-    const cart = await capture(page, "cart", directory);
-    await page.getByRole("link", { name: "주문서 보기", exact: true }).click();
-    const checkout = await capture(page, "checkout", directory);
-    const snapshots: [Snapshot, Snapshot, Snapshot] = [product, cart, checkout];
+    const snapshots: Snapshot[] = [];
+    for (const stage of stages) {
+      let snapshot: Snapshot;
+      try {
+        if (stage === "product") {
+          const response = await page.goto(targetUrl);
+          if (!response?.ok()) throw new Error("데모 상품 페이지를 불러오지 못했습니다.");
+        } else if (stage === "cart") {
+          await page.getByRole("button", { name: "장바구니에 담기", exact: true }).click();
+        } else {
+          await page.getByRole("link", { name: "주문서 보기", exact: true }).click();
+        }
+        snapshot = await capture(page, stage, directory);
+      } catch (error) {
+        if (snapshots.length === 0) throw error;
+        break;
+      }
+      snapshots.push(snapshot);
+      await onStage?.(snapshot);
+    }
     const report = {
-      scanStatus: "COMPLETED",
+      scanStatus: snapshots.length === stages.length ? "COMPLETED" : "PARTIAL",
       scenario,
       targetUrl,
       snapshots,

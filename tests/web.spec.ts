@@ -1,0 +1,64 @@
+import { spawn, type ChildProcess } from "node:child_process";
+import { expect, test } from "@playwright/test";
+
+const origin = "http://127.0.0.1:3100";
+const riskyUrl = origin + "/demo/risky/product";
+let worker: ChildProcess | undefined;
+
+test.afterEach(async () => {
+  if (!worker?.pid || worker.exitCode !== null) return;
+  const child = worker;
+  const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+  child.kill("SIGTERM");
+  await exited;
+});
+
+test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async ({ request }) => {
+  const api = origin + "/api/v1/";
+  for (const data of [{ url: riskyUrl, consent: false }, { url: "https://example.invalid", consent: true }]) {
+    expect((await request.post(api + "shops", { data })).status()).toBe(400);
+  }
+  const shop = await (await request.post(api + "shops", { data: { url: riskyUrl, consent: true } })).json();
+  const submitted = await request.post(api + "scans", { data: {
+    shopId: shop.shopId, profile: "CONTEST", flows: ["PURCHASE"], productLimit: 1, viewport: "DESKTOP",
+  } });
+  expect(submitted.status()).toBe(202);
+  const scan = await submitted.json();
+  expect(scan.status).toBe("QUEUED");
+  expect((await request.post(api + "scans/" + scan.scanId + "/cancel", { data: {} })).status()).toBe(200);
+  const status = await (await request.get(api + "scans/" + scan.scanId)).json();
+  expect(status.status).toBe("CANCELLED");
+  expect(status.summary.notTested).toBe(3);
+});
+
+test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진단한다", async ({ page, playwright }) => {
+  worker = spawn(process.execPath, ["--import", "tsx", "scripts/worker.ts"], {
+    env: process.env,
+    stdio: "inherit",
+  });
+  await page.goto(origin);
+  await page.getByRole("link", { name: "쇼핑몰 진단 시작" }).click();
+  await page.getByRole("button", { name: "위험 데모 URL 사용" }).click();
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "진단 시작" }).click();
+  await page.getByRole("link", { name: "진단 결과 보기" }).click({ timeout: 20_000 });
+  const reportUrl = page.url();
+  await expect(page.getByRole("link", { name: "특정 옵션의 사전선택" })).toBeVisible();
+  await page.getByRole("link", { name: "순차공개 가격책정" }).click();
+  await expect(page.getByRole("heading", { name: "순차공개 가격책정" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /제21조의2/ })).toBeVisible();
+  const image = page.getByRole("img", { name: "주문서 진단 화면" });
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+  const evidence = (await image.getAttribute("src"))!;
+  const anonymous = await playwright.request.newContext();
+  try {
+    expect((await anonymous.get(origin + evidence)).status()).toBe(404);
+  } finally {
+    await anonymous.dispose();
+  }
+  await page.getByRole("link", { name: "진단 결과로 돌아가기" }).click();
+  await page.getByRole("button", { name: "같은 조건으로 재진단" }).click();
+  await page.getByRole("link", { name: "진단 결과 보기" }).click({ timeout: 20_000 });
+  expect(page.url()).not.toBe(reportUrl);
+  await expect(page.getByRole("link", { name: "순차공개 가격책정" })).toBeVisible();
+});

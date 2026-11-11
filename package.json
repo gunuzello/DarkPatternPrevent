@@ -12,7 +12,9 @@
     "db:setup": "prisma migrate deploy",
     "scan": "tsx scripts/scan.ts",
     "test": "playwright test",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "worker": "tsx scripts/worker.ts",
+    "predb:setup": "tsx scripts/prepare-db.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "7.10.1",
