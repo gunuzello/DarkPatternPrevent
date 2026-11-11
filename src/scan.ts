@@ -8,16 +8,33 @@ async function capture(page: Page, stage: Stage, directory: string): Promise<Sna
   const main = page.locator('main[data-stage="' + stage + '"]');
   await main.waitFor({ state: "visible" });
 
-  const options = await main.locator("input[type=checkbox][data-option-won]").evaluateAll((nodes) =>
-    nodes.filter((node) => node.checkVisibility({ opacityProperty: true, visibilityProperty: true })).map((node) => {
-      const input = node as HTMLInputElement;
-      const { x, y, width, height } = input.getBoundingClientRect();
-      return {
-        label: Array.from(input.labels ?? [], (label) => label.innerText.trim()).join(" "),
-        won: Number(input.dataset.optionWon),
-        selected: input.checked,
-        bounds: { x: x + window.scrollX, y: y + window.scrollY, width, height },
-      };
+  const optionSelector = [
+    'input:is([type="checkbox"], [type="radio"])[data-option-won]',
+    'select:has(option[data-option-won])',
+    '[role="switch"][data-option-won]',
+  ].join(", ");
+  const options = await main.locator(optionSelector).evaluateAll((nodes) =>
+    nodes.filter((node) => node.checkVisibility({ opacityProperty: true, visibilityProperty: true })).flatMap((node) => {
+      const control = node as HTMLElement;
+      const { x, y, width, height } = control.getBoundingClientRect();
+      const bounds = { x: x + window.scrollX, y: y + window.scrollY, width, height };
+      if (control instanceof HTMLSelectElement) {
+        return Array.from(control.options)
+          .filter((option) => option.dataset.optionWon !== undefined)
+          .map((option) => ({
+            label: option.label.trim(), won: Number(option.dataset.optionWon), selected: option.selected, bounds,
+          }));
+      }
+      const native = control instanceof HTMLInputElement;
+      const label = native
+        ? Array.from(control.labels ?? [], (item) => item.innerText.trim()).join(" ")
+        : control.getAttribute("aria-label") ?? control.innerText.trim();
+      return [{
+        label,
+        won: Number(control.dataset.optionWon),
+        selected: native ? control.checked : control.getAttribute("aria-checked") === "true",
+        bounds,
+      }];
     }),
   );
   const fees = await main.locator("[data-fee-id]").evaluateAll((nodes) =>

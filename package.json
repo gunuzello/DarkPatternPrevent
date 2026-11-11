@@ -14,7 +14,8 @@
     "test": "playwright test",
     "postinstall": "prisma generate",
     "worker": "tsx scripts/worker.ts",
-    "predb:setup": "tsx scripts/prepare-db.ts"
+    "predb:setup": "tsx scripts/prepare-db.ts",
+    "evaluate": "tsx scripts/evaluate.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "7.10.1",
