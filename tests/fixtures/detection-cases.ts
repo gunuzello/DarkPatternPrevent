@@ -66,3 +66,18 @@ export const detectionCases = [
   priceCase(19, "가격 변동이 없는 구매", {}),
   priceCase(20, "데모 속성 없이 표시된 선택 배송 서비스", { checkout: "<p>선택 배송 서비스 3,000원</p>" }),
 ] satisfies DetectionCase[];
+
+export const textValidationCases = [
+  optionCase(21, "라벨의 공백과 전각 금액", checkbox("유료 선물포장（＋２，０００원）", "checked"), true),
+  optionCase(22, "라디오의 보증 연장 금액", '<label><input type="radio" checked>보증 연장 +4500원</label>', true),
+  optionCase(23, "사이즈 가격 차이", checkbox("XL 사이즈 (+2,000원)", "checked")),
+  optionCase(24, "무료 옵션을 명시한 구조화 금액 우선", checkbox("선물 포장 (+2,000원)", 'checked data-option-won="0"')),
+  optionCase(25, "기본 미선택 상태인 유료 포장", checkbox("선물 포장 (+2,000원)", "")),
+  optionCase(26, "천 단위 구분이 잘못된 금액", checkbox("선물 포장 (+20,00원)", "checked")),
+  priceCase(21, "표 셀에 분리된 필수 비용", { checkout: "<table><tr><th>필수 서비스비</th><td> 3,000원</td></tr></table>" }, [drip("checkout")]),
+  priceCase(22, "목록에 적힌 신규 필수 수수료", { cart: "<ul><li>필수 수수료: 1200원</li></ul>" }, [drip("cart")]),
+  priceCase(23, "동일 비용을 구조화된 표시에서 일반 문구로 변경", { product: fee("handling", 3000, "필수 처리비"), checkout: "<p>필수 처리비: 3,000원</p>" }),
+  priceCase(24, "조건이 붙은 비용 안내", { checkout: "<p>필수 처리비 3,000원 (도서산간 지역에 한함)</p>" }),
+  priceCase(25, "문구의 예시 금액", { checkout: "<p>예시: 필수 처리비 3,000원</p>" }),
+  priceCase(26, "같은 화면에 보이는 구조화 비용과 텍스트 중복", { checkout: fee("handling", 3000, "필수 처리비") + "<p>필수 처리비 3,000원</p>" }, [drip("checkout")]),
+] satisfies DetectionCase[];

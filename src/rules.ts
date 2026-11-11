@@ -17,7 +17,7 @@ export type Snapshot = {
 export type Finding = {
   type: "PRESELECTION" | "DRIP_PRICING";
   status: "SUSPECTED";
-  ruleVersion: "1" | "2";
+  ruleVersion: "1" | "2" | "3";
   stage: Stage;
   reason: string;
   evidence: Snapshot[];

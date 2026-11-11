@@ -6,7 +6,7 @@ import { performance } from "node:perf_hooks";
 import { chromium } from "playwright";
 import { stages, type Stage } from "../src/demo";
 import { scanDemo } from "../src/scan";
-import { detectionCases, type ExpectedFinding } from "../tests/fixtures/detection-cases";
+import { detectionCases, textValidationCases, type ExpectedFinding } from "../tests/fixtures/detection-cases";
 
 type CaseResult = {
   id: string;
@@ -23,9 +23,11 @@ const rate = (numerator: number, denominator: number) => denominator ? numerator
 const keys = (findings: ExpectedFinding[]) => findings.map(({ type, stage }) => type + ":" + stage).sort();
 
 async function main() {
-  const directory = join("scan-results", "evaluation");
+  const validateText = process.argv.includes("--text-validation");
+  const cases = validateText ? textValidationCases : detectionCases;
+  const directory = join("scan-results", validateText ? "text-validation" : "evaluation");
   await mkdir(directory, { recursive: true });
-  let fixture = detectionCases[0];
+  let fixture = cases[0];
   const prefix = "/demo/clean/";
   const server = createServer((request, response) => {
     const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
@@ -51,7 +53,7 @@ async function main() {
     const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL });
     try {
       const results: CaseResult[] = [];
-      for (const testCase of detectionCases) {
+      for (const testCase of cases) {
         fixture = testCase;
         const start = performance.now();
         const scan = await scanDemo(browser, origin, "clean", join(directory, testCase.id));
@@ -86,6 +88,7 @@ async function main() {
       console.log(`정확 일치 ${summary.exactMatches}/${summary.cases} · 단계 도달 ${visited}/${totalStages} · 평균 ${summary.meanDurationMs}ms`);
       for (const item of results.filter(({ exactMatch }) => !exactMatch)) console.log(item.id, item.title);
       console.log(output);
+      if (summary.exactMatches !== summary.cases || visited !== totalStages) process.exitCode = 1;
     } finally {
       await browser.close();
     }

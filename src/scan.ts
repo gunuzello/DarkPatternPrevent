@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Browser, Page } from "playwright";
 import { stages, type Scenario, type Stage } from "./demo";
+import { mandatoryFeeFromText, paidOptionFromText } from "./price-text";
 import { detect, type Snapshot } from "./rules";
 
 async function capture(page: Page, stage: Stage, directory: string): Promise<Snapshot> {
@@ -9,20 +10,20 @@ async function capture(page: Page, stage: Stage, directory: string): Promise<Sna
   await main.waitFor({ state: "visible" });
 
   const optionSelector = [
-    'input:is([type="checkbox"], [type="radio"])[data-option-won]',
-    'select:has(option[data-option-won])',
-    '[role="switch"][data-option-won]',
+    'input:is([type="checkbox"], [type="radio"])',
+    'select',
+    '[role="switch"]',
   ].join(", ");
-  const options = await main.locator(optionSelector).evaluateAll((nodes) =>
+  const optionControls = await main.locator(optionSelector).evaluateAll((nodes) =>
     nodes.filter((node) => node.checkVisibility({ opacityProperty: true, visibilityProperty: true })).flatMap((node) => {
       const control = node as HTMLElement;
       const { x, y, width, height } = control.getBoundingClientRect();
       const bounds = { x: x + window.scrollX, y: y + window.scrollY, width, height };
       if (control instanceof HTMLSelectElement) {
         return Array.from(control.options)
-          .filter((option) => option.dataset.optionWon !== undefined)
+          .filter((option) => option.selected || option.dataset.optionWon !== undefined)
           .map((option) => ({
-            label: option.label.trim(), won: Number(option.dataset.optionWon), selected: option.selected, bounds,
+            label: option.label.trim(), amount: option.dataset.optionWon, selected: option.selected, bounds,
           }));
       }
       const native = control instanceof HTMLInputElement;
@@ -31,13 +32,17 @@ async function capture(page: Page, stage: Stage, directory: string): Promise<Sna
         : control.getAttribute("aria-label") ?? control.innerText.trim();
       return [{
         label,
-        won: Number(control.dataset.optionWon),
+        amount: control.dataset.optionWon,
         selected: native ? control.checked : control.getAttribute("aria-checked") === "true",
         bounds,
       }];
     }),
   );
-  const fees = await main.locator("[data-fee-id]").evaluateAll((nodes) =>
+  const options = optionControls.flatMap(({ amount, ...control }) => {
+    const won = amount === undefined ? paidOptionFromText(control.label) : Number(amount);
+    return won === null || !Number.isFinite(won) ? [] : [{ ...control, won }];
+  });
+  const structuredFees = await main.locator("[data-fee-id]").evaluateAll((nodes) =>
     nodes.filter((node) => node.checkVisibility({ opacityProperty: true, visibilityProperty: true })).map((node) => {
       const row = node as HTMLElement;
       const { x, y, width, height } = row.getBoundingClientRect();
@@ -50,7 +55,29 @@ async function capture(page: Page, stage: Stage, directory: string): Promise<Sna
       };
     }),
   );
-  const priceLines = await main.locator('[aria-label="가격 내역"] li, [data-total]').allInnerTexts();
+  const feeRows = await main.locator("p, li, tr, dd").evaluateAll((nodes) =>
+    nodes.filter((node) =>
+      !node.closest("[data-fee-id]") && !node.querySelector("[data-fee-id], p, li, tr, dd") &&
+      node.checkVisibility({ opacityProperty: true, visibilityProperty: true }),
+    ).map((node) => {
+      const row = node as HTMLElement;
+      const { x, y, width, height } = row.getBoundingClientRect();
+      return { label: row.innerText.trim(), bounds: { x: x + window.scrollX, y: y + window.scrollY, width, height } };
+    }),
+  );
+  const structuredKeys = new Set(structuredFees.flatMap((fee) => {
+    const parsed = mandatoryFeeFromText(fee.label);
+    return parsed ? [parsed.key] : [];
+  }));
+  const textFees = feeRows.flatMap((row) => {
+    const parsed = mandatoryFeeFromText(row.label);
+    return !parsed || structuredKeys.has(parsed.key) ? [] : [{
+      ...row, id: "text:" + parsed.key, won: parsed.won, required: true,
+    }];
+  });
+  const fees = [...structuredFees, ...textFees];
+  const displayedPrices = await main.locator('[aria-label="가격 내역"] li, [data-total]').allInnerTexts();
+  const priceLines = [...new Set([...displayedPrices, ...textFees.map(({ label }) => label)])];
   const screenshot = stage + ".png";
   await page.screenshot({ path: join(directory, screenshot), fullPage: true });
   return { stage, url: page.url(), screenshot, priceLines, options, fees };
