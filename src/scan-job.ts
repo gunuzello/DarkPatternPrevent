@@ -14,7 +14,7 @@ export async function runScanJob(id: string, targetUrl: string) {
     const target = scanTarget(targetUrl);
     if (!target) throw new Error("허용 목록에 없는 진단 대상입니다.");
     const requested = await store.scan.findUnique({
-      where: { id }, select: { executionMode: true, shop: { select: { verifiedAt: true } } },
+      where: { id }, select: { executionMode: true, viewport: true, shop: { select: { verifiedAt: true } } },
     });
     if (!requested) throw new Error("진단 작업을 찾을 수 없습니다.");
     if (requested.executionMode === "DYNAMIC" && (target.scenario !== "public" || !requested.shop?.verifiedAt)) {
@@ -34,9 +34,9 @@ export async function runScanJob(id: string, targetUrl: string) {
       };
       const report = target.scenario === "public"
         ? requested.executionMode === "DYNAMIC" && proxy
-          ? await scanDynamicPublicShop(browser, target.url, directory, proxy.server, onStage)
-          : await scanPublicShop(browser, target.url, directory, onStage)
-        : await scanDemo(browser, new URL(target.url).origin, target.scenario, directory, onStage);
+          ? await scanDynamicPublicShop(browser, target.url, directory, proxy.server, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", onStage)
+          : await scanPublicShop(browser, target.url, directory, onStage, undefined, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP")
+        : await scanDemo(browser, new URL(target.url).origin, target.scenario, directory, onStage, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP");
       const finished = await store.scan.update({
         where: { id, status: "RUNNING", cancelRequested: false },
         data: {

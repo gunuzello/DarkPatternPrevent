@@ -2,13 +2,15 @@ import type { Stage } from "./demo";
 import type { Finding } from "./rules";
 
 // Update when rule behavior or the observations used for a decision change.
-export const scanComparisonVersion = 1;
+export const scanComparisonVersion = 2;
 
 type Signal = Pick<Finding, "type" | "stage" | "reason" | "ruleVersion">;
 type ComparableReport = {
   comparisonVersion?: number;
   targetUrl: string;
   scenario: string;
+  executionMode?: string;
+  viewport?: string;
   snapshots: { stage: Stage; url: string }[];
   findings: Signal[];
 };
@@ -21,6 +23,7 @@ export function compareScans(before: ComparableReport, after: ComparableReport) 
     return { status: "UNAVAILABLE", reason: "두 보고서의 비교 형식이 다릅니다." } as const;
   }
   if (before.targetUrl !== after.targetUrl || before.scenario !== after.scenario ||
+      before.executionMode !== after.executionMode || before.viewport !== after.viewport ||
       !before.snapshots.length || before.snapshots.length !== after.snapshots.length ||
       before.snapshots.some(({ stage, url }, index) =>
         stage !== after.snapshots[index].stage || url !== after.snapshots[index].url)) {

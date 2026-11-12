@@ -80,10 +80,10 @@ export async function POST(request: NextRequest, context: Context) {
     if (!shop) return notFound();
     const target = scanTarget(shop.url);
     if (!target) return error("지원하는 쇼핑몰 주소가 아닙니다.", 400);
-    if (!["CONTEST", "DYNAMIC"].includes(body.profile) || body.viewport !== "DESKTOP" ||
+    if (!["CONTEST", "DYNAMIC"].includes(body.profile) || !["DESKTOP", "MOBILE"].includes(body.viewport) ||
         !Array.isArray(body.flows) || body.flows.length !== 1 || body.flows[0] !== "PURCHASE" ||
         body.productLimit !== 1) {
-      return error("데스크톱 구매 흐름에서 상품 1개를 진단할 수 있습니다.", 400);
+      return error("PC 또는 모바일 구매 흐름에서 상품 1개를 진단할 수 있습니다.", 400);
     }
     if (body.profile === "DYNAMIC" && (target.scenario !== "public" || !shop.verifiedAt)) {
       return error("사이트 확인을 마친 외부 쇼핑몰만 동적 진단할 수 있습니다.", 409);
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest, context: Context) {
       if (typeof baselineScanId !== "string") return error("기준 진단 ID를 확인해 주세요.", 400);
       const baseline = await db().scan.findFirst({
         where: {
-          id: baselineScanId, shopId: shop.id, targetUrl: target.url, scenario: target.scenario,
+          id: baselineScanId, shopId: shop.id, targetUrl: target.url, scenario: target.scenario, viewport: body.viewport,
           status: { in: ["COMPLETED", "PARTIAL"] }, reportPath: { not: null },
         },
         select: { id: true },
@@ -103,7 +103,8 @@ export async function POST(request: NextRequest, context: Context) {
     const scan = await db().scan.create({
       data: {
         id: randomUUID(), shopId: shop.id, targetUrl: target.url, scenario: target.scenario,
-        executionMode: body.profile === "DYNAMIC" ? "DYNAMIC" : "STATIC", baselineScanId, status: "QUEUED",
+        executionMode: body.profile === "DYNAMIC" ? "DYNAMIC" : "STATIC", viewport: body.viewport,
+        baselineScanId, status: "QUEUED",
       },
     });
     return Response.json({ scanId: scan.id, status: scan.status, createdAt: scan.createdAt }, { status: 202 });
@@ -181,7 +182,8 @@ export async function GET(request: NextRequest, context: Context) {
   };
   if (!action) {
     return Response.json({
-      scanId: scan.id, shopId: scan.shopId, scenario: scan.scenario, status: scan.status, cancelRequested: scan.cancelRequested,
+      scanId: scan.id, shopId: scan.shopId, scenario: scan.scenario, viewport: scan.viewport,
+      status: scan.status, cancelRequested: scan.cancelRequested,
       progress: active ? Math.round(scan.progress * 100 / stages.length) : 100, coverage, summary,
     });
   }
@@ -197,7 +199,7 @@ export async function GET(request: NextRequest, context: Context) {
       ? { baselineScanId: scan.baselineScanId, ...(before ? compareScans(before, report)
         : { status: "UNAVAILABLE" as const, reason: "기준 보고서를 읽을 수 없습니다." }) }
       : null;
-    return Response.json({ ...report, comparison, scanId: scan.id, shopId: scan.shopId, coverage, summary,
+    return Response.json({ ...report, viewport: scan.viewport, comparison, scanId: scan.id, shopId: scan.shopId, coverage, summary,
       findings: scan.findings });
   }
   return notFound();

@@ -21,6 +21,7 @@ model Scan {
   id              String    @id
   scenario        String
   executionMode   String    @default("STATIC")
+  viewport        String    @default("DESKTOP")
   targetUrl       String
   status          String
   createdAt       DateTime  @default(now())

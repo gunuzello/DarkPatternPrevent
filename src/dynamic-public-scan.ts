@@ -17,13 +17,17 @@ export async function scanDynamicPublicShop(
   targetUrl: string,
   directory: string,
   proxyServer: string,
+  viewport: "DESKTOP" | "MOBILE",
   onStage: (snapshot: Snapshot) => Promise<void>,
 ) {
   const target = new URL(targetUrl);
   await mkdir(directory, { recursive: true });
+  const mobile = viewport === "MOBILE";
   const context = await browser.newContext({
     proxy: { server: proxyServer }, serviceWorkers: "block", acceptDownloads: false,
-    locale: "ko-KR", timezoneId: "Asia/Seoul", viewport: { width: 1440, height: 1000 },
+    locale: "ko-KR", timezoneId: "Asia/Seoul",
+    viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 },
+    isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1,
   });
   try {
     await context.route("**/*", async (route) => {
@@ -95,7 +99,7 @@ export async function scanDynamicPublicShop(
     const report = {
       comparisonVersion: scanComparisonVersion,
       scanStatus: journey.reached === "checkout" ? "COMPLETED" as const : "PARTIAL" as const,
-      executionMode: "DYNAMIC" as const, scenario: "public" as const, targetUrl, snapshots, interactions,
+      executionMode: "DYNAMIC" as const, viewport, scenario: "public" as const, targetUrl, snapshots, interactions,
       explorationBlocker: journey.blocker ?? null,
       networkPriceEvidence: journey.network,
       priceLedger: buildPriceLedger(snapshots, journey.network, firstPriceExposure),

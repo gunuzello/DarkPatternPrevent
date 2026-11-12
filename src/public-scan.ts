@@ -32,8 +32,14 @@ export async function scanPublicShop(
   browser: Browser, targetUrl: string, directory: string,
   onStage: (snapshot: Snapshot) => Promise<void>,
   load = fetchPublicHtml,
+  viewport: "DESKTOP" | "MOBILE" = "DESKTOP",
 ) {
-  const context = await browser.newContext({ offline: true, javaScriptEnabled: false, serviceWorkers: "block", acceptDownloads: false });
+  const mobile = viewport === "MOBILE";
+  const context = await browser.newContext({
+    offline: true, javaScriptEnabled: false, serviceWorkers: "block", acceptDownloads: false,
+    viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 },
+    isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1,
+  });
   try {
     await mkdir(directory, { recursive: true });
     await context.route("**/*", (route) => route.abort());
@@ -94,7 +100,8 @@ export async function scanPublicShop(
     await onStage(product);
     const report = {
       comparisonVersion: scanComparisonVersion,
-      scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, scenario: "public" as const, targetUrl,
+      scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport,
+      scenario: "public" as const, targetUrl,
       snapshots: [product], priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]),
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");

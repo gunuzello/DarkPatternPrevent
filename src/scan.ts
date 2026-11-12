@@ -89,7 +89,10 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
   return { stage, url, screenshot, screenshotArea, capturedAt, priceLines, options, fees };
 }
 
-export async function scanDemo(browser: Browser, origin: string, scenario: Scenario, directory: string, onStage?: (snapshot: Snapshot) => Promise<void>) {
+export async function scanDemo(
+  browser: Browser, origin: string, scenario: Scenario, directory: string,
+  onStage?: (snapshot: Snapshot) => Promise<void>, viewport: "DESKTOP" | "MOBILE" = "DESKTOP",
+) {
   const base = new URL(origin);
   if (base.protocol !== "http:" || base.hostname !== "127.0.0.1" || base.href !== base.origin + "/") {
     throw new Error("데모는 http://127.0.0.1의 로컬 서버만 지원합니다.");
@@ -99,9 +102,11 @@ export async function scanDemo(browser: Browser, origin: string, scenario: Scena
   const targetUrl = base.origin + path + "product";
   const routes = new Set<string>(stages.map((stage) => path + stage));
   await mkdir(directory, { recursive: true });
+  const mobile = viewport === "MOBILE";
   const context = await browser.newContext({
     serviceWorkers: "block", javaScriptEnabled: true, locale: "ko-KR", timezoneId: "Asia/Seoul",
-    viewport: { width: 1440, height: 1000 }, acceptDownloads: false,
+    viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 },
+    isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1, acceptDownloads: false,
   });
   try {
     await context.route("**/*", async (route) => {
@@ -152,6 +157,7 @@ export async function scanDemo(browser: Browser, origin: string, scenario: Scena
       comparisonVersion: scanComparisonVersion,
       scanStatus: snapshots.length === stages.length ? "COMPLETED" : "PARTIAL",
       executionMode: "DEMO" as const,
+      viewport,
       scenario,
       targetUrl,
       snapshots,

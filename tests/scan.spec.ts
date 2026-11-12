@@ -43,6 +43,13 @@ test("정상 데모의 미선택 옵션과 사전 공개 비용은 탐지하지 
   expect(report.findings).toEqual([]);
 });
 
+test("모바일 진단은 고정된 모바일 화면 조건을 보고서와 증거에 보존한다", async ({ browser }, info) => {
+  const report = await scanDemo(browser, origin, "clean", info.outputPath("mobile"), undefined, "MOBILE");
+  expect(report.viewport).toBe("MOBILE");
+  expect(report.snapshots[0].screenshotArea?.width).toBe(390);
+  expect(report.snapshots[0].screenshotArea?.height).toBeGreaterThanOrEqual(844);
+});
+
 test("외부 주소를 거부한다", async ({ browser }, info) => {
   await expect(scanDemo(browser, "https://example.invalid", "risky", info.outputPath("evidence")))
     .rejects.toThrow("로컬 서버만 지원합니다");
@@ -134,7 +141,7 @@ test("재진단은 같은 항목의 변화만 비교하고 누락된 단계는 �
   const { compareScans } = await import("../src/scan-comparison");
   const targetUrl = "https://shop.example.com/products/1";
   const before = {
-    comparisonVersion: 1, scenario: "public", targetUrl,
+    comparisonVersion: 2, scenario: "public", targetUrl,
     snapshots: [{ stage: "product" as const, url: targetUrl }],
     findings: [{ type: "PRESELECTION" as const, stage: "product" as const, ruleVersion: "3" as const, reason: "유료 포장" }],
   };

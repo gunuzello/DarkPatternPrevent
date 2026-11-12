@@ -13,6 +13,7 @@ type Report = {
   scenario: string;
   scanStatus: "COMPLETED" | "PARTIAL";
   executionMode: "DEMO" | "STATIC" | "DYNAMIC";
+  viewport: "DESKTOP" | "MOBILE";
   targetUrl: string;
   coverage: Record<Stage, string>;
   summary: { suspected: number; reviewNeeded: number; notTested: number };
@@ -46,6 +47,7 @@ export function ScanReport({ id }: { id: string }) {
     <>
       <p className="eyebrow">{report.scanStatus === "COMPLETED" ? "진단 완료" : "부분 완료"}</p>
       <p className="target-url">{report.targetUrl}</p>
+      <p>화면 환경 · {report.viewport === "MOBILE" ? "모바일 390×844" : "PC 1440×1000"}</p>
       <dl className="summary">
         <div><dt>위험 의심</dt><dd>{report.summary.suspected}</dd></div>
         <div><dt>확인 필요</dt><dd>{report.summary.reviewNeeded}</dd></div>
@@ -86,7 +88,9 @@ export function ScanReport({ id }: { id: string }) {
       <button className="action" disabled={pending} onClick={async () => {
         setPending(true);
         try {
-          const next = await post("scans", scanRequest(report.shopId, id, report.executionMode === "DYNAMIC" ? "DYNAMIC" : "CONTEST"));
+          const next = await post("scans", scanRequest(
+            report.shopId, id, report.executionMode === "DYNAMIC" ? "DYNAMIC" : "CONTEST", report.viewport,
+          ));
           router.push("/scan/" + next.scanId);
         } catch {
           setError("재진단을 시작하지 못했습니다.");

@@ -70,7 +70,10 @@ test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진�
   } });
   expect(wrongBaseline.status()).toBe(404);
   await expect(page.getByRole("link", { name: "특정 옵션의 사전선택" })).toBeVisible();
-  await page.getByRole("link", { name: "순차공개 가격책정" }).click();
+  await Promise.all([
+    page.waitForURL("**/report/*/*"),
+    page.getByRole("link", { name: "순차공개 가격책정" }).click(),
+  ]);
   await expect(page.getByRole("heading", { name: "순차공개 가격책정" })).toBeVisible();
   await expect(page.getByRole("link", { name: /제21조의2/ })).toBeVisible();
   const image = page.getByRole("img", { name: "주문서 진단 화면" });

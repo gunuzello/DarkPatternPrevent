@@ -9,6 +9,9 @@ export async function post(path: string, body: object) {
   return result;
 }
 
-export function scanRequest(shopId: string, baselineScanId?: string, profile: "CONTEST" | "DYNAMIC" = "CONTEST") {
-  return { shopId, baselineScanId, profile, flows: ["PURCHASE"], productLimit: 1, viewport: "DESKTOP" };
+export function scanRequest(
+  shopId: string, baselineScanId?: string, profile: "CONTEST" | "DYNAMIC" = "CONTEST",
+  viewport: "DESKTOP" | "MOBILE" = "DESKTOP",
+) {
+  return { shopId, baselineScanId, profile, flows: ["PURCHASE"], productLimit: 1, viewport };
 }
