@@ -1,13 +1,14 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Browser } from "playwright";
-import { buildPriceLedger } from "./price-ledger";
+import { buildPriceLedger, type FirstPriceExposure } from "./price-ledger";
 import { isProductPage, productPath } from "./public-scan";
 import { explorePurchaseJourney } from "./purchase-journey";
 import { observePaidOptionChanges } from "./journey-evidence";
 import { capture } from "./scan";
 import { scanComparisonVersion } from "./scan-comparison";
 import { detect, type InteractionEvidence, type Snapshot } from "./rules";
+import { feeMentionsFromText } from "./price-text";
 
 const rootHost = (hostname: string) => hostname.replace(/^www\./, "");
 
@@ -42,20 +43,41 @@ export async function scanDynamicPublicShop(
     if (!response?.ok()) throw new Error("쇼핑몰 첫 화면을 불러오지 못했습니다.");
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
+    let firstPriceExposure: FirstPriceExposure | undefined;
     if (!await isProductPage(page, page.url())) {
-      const links = await page.locator("a[href]").evaluateAll((anchors) => anchors.slice(0, 300).map((item) => item.getAttribute("href") ?? ""));
+      const listingUrl = page.url();
+      const links = await page.locator("a[href]").evaluateAll((anchors) => anchors.slice(0, 300).map((item) => ({
+        href: item.getAttribute("href") ?? "",
+        context: (item.closest("article, li, [class*='product' i], [class*='item' i]") ?? item).textContent?.replace(/\s+/g, " ").trim().slice(0, 500) ?? "",
+      })));
       const candidates = new Set<string>();
-      for (const href of links) {
+      const contexts = new Map<string, string>();
+      for (const { href, context } of links) {
         let candidate: URL;
         try { candidate = new URL(href, page.url()); } catch { continue; }
-        if (candidate.protocol !== "https:" || candidate.origin !== target.origin || !productPath.test(candidate.pathname)) continue;
+        if (candidate.protocol !== "https:" || rootHost(candidate.hostname) !== rootHost(target.hostname) || !productPath.test(candidate.pathname)) continue;
         candidates.add(candidate.href);
+        if (!contexts.has(candidate.href)) contexts.set(candidate.href, context);
         if (candidates.size === 3) break;
       }
+      const listingScreenshot = "listing.png";
+      await page.screenshot({ path: join(directory, listingScreenshot), fullPage: false, scale: "css" });
+      const listingCapturedAt = new Date().toISOString();
       let found = false;
       for (const candidate of candidates) {
         const next = await page.goto(candidate, { waitUntil: "domcontentloaded", timeout: 20_000 }).catch(() => null);
-        if (next?.ok() && await isProductPage(page, page.url())) { found = true; break; }
+        if (next?.ok() && await isProductPage(page, page.url())) {
+          const text = contexts.get(candidate) ?? "";
+          const observedAmounts = [...text.matchAll(/(?:₩\s*)?(\d[\d,]*)\s*원/g)]
+            .map((match) => Number(match[1].replaceAll(",", ""))).filter((amount) => Number.isFinite(amount) && amount > 0);
+          if (observedAmounts.length) firstPriceExposure = {
+            status: "OBSERVED", url: listingUrl, productUrl: page.url(), text,
+            amounts: [...new Set(observedAmounts)], feeMentions: feeMentionsFromText(text),
+            screenshot: listingScreenshot, capturedAt: listingCapturedAt,
+          };
+          found = true;
+          break;
+        }
       }
       if (!found) throw new Error("동적으로 검사할 상품 상세 화면을 찾지 못했습니다.");
     }
@@ -76,7 +98,8 @@ export async function scanDynamicPublicShop(
       executionMode: "DYNAMIC" as const, scenario: "public" as const, targetUrl, snapshots, interactions,
       explorationBlocker: journey.blocker ?? null,
       networkPriceEvidence: journey.network,
-      priceLedger: buildPriceLedger(snapshots, journey.network), findings: detect(snapshots),
+      priceLedger: buildPriceLedger(snapshots, journey.network, firstPriceExposure),
+      findings: detect(snapshots, firstPriceExposure?.feeMentions),
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
     return report;

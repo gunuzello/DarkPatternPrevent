@@ -36,6 +36,7 @@ export type NetworkPriceEvidence = {
   capturedAt: string;
   values: { path: string; won: number }[];
 };
+export type PriorFeeDisclosure = { key: string; won: number };
 export type Finding = {
   type: "PRESELECTION" | "DRIP_PRICING";
   status: "SUSPECTED";
@@ -46,7 +47,7 @@ export type Finding = {
   elementBounds?: Bounds;
 };
 
-export function detect([product, ...later]: Snapshot[]): Finding[] {
+export function detect([product, ...later]: Snapshot[], priorDisclosures: PriorFeeDisclosure[] = []): Finding[] {
   if (!product) return [];
-  return [...detectPreselection(product), ...detectDripPricing(product, later)];
+  return [...detectPreselection(product), ...detectDripPricing(product, later, priorDisclosures)];
 }

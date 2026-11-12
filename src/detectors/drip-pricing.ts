@@ -1,4 +1,4 @@
-import type { Fee, Finding, Snapshot } from "../rules";
+import type { Fee, Finding, PriorFeeDisclosure, Snapshot } from "../rules";
 import { mandatoryFeeFromText } from "../price-text";
 
 function paidRequired(fee: Fee) {
@@ -12,11 +12,13 @@ function sameFee(prior: Fee, current: Fee) {
   return name !== undefined && name === mandatoryFeeFromText(current.label)?.key;
 }
 
-export function detectDripPricing(product: Snapshot, later: Snapshot[]): Finding[] {
+export function detectDripPricing(product: Snapshot, later: Snapshot[], priorDisclosures: PriorFeeDisclosure[] = []): Finding[] {
   const findings: Finding[] = [];
   const disclosed = product.fees.filter(paidRequired);
   for (const snapshot of later) {
     for (const fee of snapshot.fees.filter(paidRequired)) {
+      const currentKey = mandatoryFeeFromText(fee.label)?.key;
+      if (currentKey && priorDisclosures.some((item) => item.key === currentKey && item.won === fee.won)) continue;
       if (disclosed.some((prior) => sameFee(prior, fee))) continue;
       findings.push({
         type: "DRIP_PRICING",

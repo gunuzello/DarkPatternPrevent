@@ -10,6 +10,7 @@ export type FirstPriceExposure = {
   productUrl: string;
   text: string;
   amounts: number[];
+  feeMentions: { key: string; won: number }[];
   screenshot: string;
   capturedAt: string;
 };

@@ -19,3 +19,11 @@ export function mandatoryFeeFromText(label: string) {
   const amount = won(match[2]);
   return amount === null ? null : { key: match[1], won: amount };
 }
+
+export function feeMentionsFromText(text: string) {
+  const pattern = new RegExp(String.raw`(?:필수\s*)?(처리비|포장비|서비스비|수수료)\s*[:：]?\s*${amount}`, "g");
+  return [...normalize(text).matchAll(pattern)].flatMap((match) => {
+    const amount = won(match[2]);
+    return amount === null ? [] : [{ key: match[1], won: amount }];
+  });
+}

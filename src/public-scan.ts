@@ -7,6 +7,7 @@ import { fetchPublicHtml } from "./public-html";
 import { capture } from "./scan";
 import { detect, type Snapshot } from "./rules";
 import { publicShopUrl } from "./targets";
+import { feeMentionsFromText } from "./price-text";
 
 export const productPath = /\/(?:products?\/(?!(?:list|search)\.(?:html|php)(?:$|\/)|category\/)[^/]+|goods\/[^/]+|items?\/[^/]+|shopdetail(?:\/[^/]+|\.html)|catalogue\/[^/]+_\d+\/index\.html)/i;
 const addToCart = /^(?:장바구니(?:에 담기)?|add to (?:cart|bag|basket))$/i;
@@ -79,7 +80,8 @@ export async function scanPublicShop(
           .map((match) => Number(match[1].replaceAll(",", ""))).filter((amount) => Number.isFinite(amount) && amount > 0);
         if (observedAmounts.length) firstPriceExposure = {
           status: "OBSERVED", url: listingUrl, productUrl: next.url, text,
-          amounts: [...new Set(observedAmounts)], screenshot: listingScreenshot, capturedAt: listingCapturedAt,
+          amounts: [...new Set(observedAmounts)], feeMentions: feeMentionsFromText(text),
+          screenshot: listingScreenshot, capturedAt: listingCapturedAt,
         };
         found = true;
         break;

@@ -98,7 +98,7 @@ test("외부 쇼핑몰 형식의 상품을 로컬 증거로 검사하고 후속 
     return {
       url,
       html: url === target
-        ? '<a href="https://other.example.com/products/no">다른 상점</a><a href="/product/search.html?keyword=">상품검색</a><a href="/products/category-landing">기획전</a><article><a href="/products/gift">상품 상세</a><span>20,000원</span></article>'
+        ? '<a href="https://other.example.com/products/no">다른 상점</a><a href="/product/search.html?keyword=">상품검색</a><a href="/products/category-landing">기획전</a><article><a href="/products/gift">상품 상세</a><span>20,000원 · 필수 처리비 3,000원</span></article>'
         : url.endsWith("category-landing")
           ? "<h1>기획전</h1>"
           : '<meta property="og:type" content="product"><meta property="product:price:amount" content="20000"><label><input type="checkbox" checked>선물 포장 (+2,000원)</label>',
@@ -108,7 +108,8 @@ test("외부 쇼핑몰 형식의 상품을 로컬 증거로 검사하고 후속 
   expect(report.scanStatus).toBe("PARTIAL");
   expect(report.snapshots.map(({ stage }) => stage)).toEqual(["product"]);
   expect(report.priceLedger.firstPriceExposure).toMatchObject({
-    status: "OBSERVED", productUrl: target + "products/gift", screenshot: "listing.png", amounts: [20000],
+    status: "OBSERVED", productUrl: target + "products/gift", screenshot: "listing.png", amounts: [20000, 3000],
+    feeMentions: [{ key: "처리비", won: 3000 }],
   });
   expect(report.findings.map(({ type }) => type)).toEqual(["PRESELECTION"]);
 });
@@ -207,6 +208,18 @@ test("가격 원장은 화면과 API 금액의 일치·불일치를 값별로 �
     expect.objectContaining({ path: "$.total", matchedScreen: true }),
     expect.objectContaining({ path: "$.hiddenFee", matchedScreen: false }),
   ]);
+});
+
+test("목록에서 이미 같은 필수 비용을 공개했다면 뒤늦은 가격 공개로 오탐하지 않는다", async () => {
+  const { detect } = await import("../src/rules");
+  const bounds = { x: 0, y: 0, width: 100, height: 20 };
+  const product = { stage: "product" as const, url: "https://shop.example.com/product", screenshot: "product.png", priceLines: ["18,000원"], options: [], fees: [] };
+  const checkout = {
+    stage: "checkout" as const, url: "https://shop.example.com/checkout", screenshot: "checkout.png", priceLines: ["21,000원"], options: [],
+    fees: [{ id: "text:처리비", label: "필수 처리비 3,000원", won: 3000, required: true, bounds }],
+  };
+  expect(detect([product, checkout]).map(({ type }) => type)).toEqual(["DRIP_PRICING"]);
+  expect(detect([product, checkout], [{ key: "처리비", won: 3000 }])).toEqual([]);
 });
 
 test("브라우저 연결은 검증된 공개 주소로 고정하고 내부망·혼합 DNS·다른 포트를 거부한다", async () => {
