@@ -80,10 +80,13 @@ export async function POST(request: NextRequest, context: Context) {
     if (!shop) return notFound();
     const target = scanTarget(shop.url);
     if (!target) return error("지원하는 쇼핑몰 주소가 아닙니다.", 400);
-    if (body.profile !== "CONTEST" || body.viewport !== "DESKTOP" ||
+    if (!["CONTEST", "DYNAMIC"].includes(body.profile) || body.viewport !== "DESKTOP" ||
         !Array.isArray(body.flows) || body.flows.length !== 1 || body.flows[0] !== "PURCHASE" ||
         body.productLimit !== 1) {
       return error("데스크톱 구매 흐름에서 상품 1개를 진단할 수 있습니다.", 400);
+    }
+    if (body.profile === "DYNAMIC" && (target.scenario !== "public" || !shop.verifiedAt)) {
+      return error("사이트 확인을 마친 외부 쇼핑몰만 동적 진단할 수 있습니다.", 409);
     }
     const baselineScanId = body.baselineScanId;
     if (baselineScanId !== undefined) {
@@ -98,7 +101,10 @@ export async function POST(request: NextRequest, context: Context) {
       if (!baseline) return notFound();
     }
     const scan = await db().scan.create({
-      data: { id: randomUUID(), shopId: shop.id, targetUrl: target.url, scenario: target.scenario, baselineScanId, status: "QUEUED" },
+      data: {
+        id: randomUUID(), shopId: shop.id, targetUrl: target.url, scenario: target.scenario,
+        executionMode: body.profile === "DYNAMIC" ? "DYNAMIC" : "STATIC", baselineScanId, status: "QUEUED",
+      },
     });
     return Response.json({ scanId: scan.id, status: scan.status, createdAt: scan.createdAt }, { status: 202 });
   }

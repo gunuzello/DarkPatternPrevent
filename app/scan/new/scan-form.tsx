@@ -9,6 +9,7 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
   const [url, setUrl] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [verification, setVerification] = useState<{ shopId: string; metaTag: string } | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -16,6 +17,11 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
     setError("");
     try {
       const shop = await post("shops", { url: url.trim(), consent: new FormData(event.currentTarget).get("consent") === "on" });
+      if (shop.verification) {
+        setVerification({ shopId: shop.shopId, metaTag: shop.verification.metaTag });
+        setPending(false);
+        return;
+      }
       const scan = await post("scans", scanRequest(shop.shopId));
       router.push("/scan/" + scan.scanId);
     } catch (cause) {
@@ -23,6 +29,31 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
       setPending(false);
     }
   }
+
+  async function verifyAndStart() {
+    if (!verification) return;
+    setPending(true);
+    setError("");
+    try {
+      await post("shops/" + verification.shopId + "/verify", {});
+      const scan = await post("scans", scanRequest(verification.shopId, undefined, "DYNAMIC"));
+      router.push("/scan/" + scan.scanId);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "사이트 확인에 실패했습니다.");
+      setPending(false);
+    }
+  }
+
+  if (verification) return (
+    <section aria-labelledby="verification-title">
+      <h2 id="verification-title">쇼핑몰 관리 권한 확인</h2>
+      <p>아래 태그를 쇼핑몰 첫 화면의 <code>&lt;head&gt;</code> 안에 추가하세요. 확인된 쇼핑몰만 장바구니·주문서 동적 진단을 실행합니다.</p>
+      <pre><code>{verification.metaTag}</code></pre>
+      <button type="button" className="action" disabled={pending} onClick={verifyAndStart}>{pending ? "확인 중…" : "게시 완료 · 동적 진단 시작"}</button>
+      <button type="button" className="action secondary" disabled={pending} onClick={() => setVerification(null)}>URL 다시 입력</button>
+      {error && <p role="alert">{error}</p>}
+    </section>
+  );
 
   return (
     <form onSubmit={submit}>

@@ -25,6 +25,10 @@ test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async
   const externalShop = await external.json();
   expect(externalShop.verification.metaTag).toContain('name="baromi-site-verification"');
   expect(externalShop.verification.token).toHaveLength(32);
+  const unverifiedDynamic = await request.post(api + "scans", { data: {
+    shopId: externalShop.shopId, profile: "DYNAMIC", flows: ["PURCHASE"], productLimit: 1, viewport: "DESKTOP",
+  } });
+  expect(unverifiedDynamic.status()).toBe(409);
   const shop = await (await request.post(api + "shops", { data: { url: riskyUrl, consent: true } })).json();
   expect(shop.verification).toBeNull();
   const verified = await request.post(api + "shops/" + shop.shopId + "/verify", { data: {} });

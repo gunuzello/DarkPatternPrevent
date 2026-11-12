@@ -177,3 +177,34 @@ test("사이트 확인 메타 태그는 속성 순서와 따옴표가 달라도 
   expect(matchesVerification(`<meta name="${verificationName}" content="forged">`, verification.hash)).toBe(false);
   expect(matchesVerification(`<script>${verification.token}</script>`, verification.hash)).toBe(false);
 });
+
+test("가격 원장은 화면과 API 금액의 일치·불일치를 값별로 보존한다", async () => {
+  const { buildPriceLedger } = await import("../src/price-ledger");
+  const snapshot = {
+    stage: "cart" as const, url: "https://shop.example.com/cart", screenshot: "cart.png",
+    priceLines: ["상품 18,000원", "합계 21,000원"], options: [], fees: [],
+  };
+  const ledger = buildPriceLedger([snapshot], [{
+    id: "network:cart:1", stage: "cart", url: "https://shop.example.com/api/cart", capturedAt: new Date().toISOString(),
+    values: [{ path: "$.total", won: 21000 }, { path: "$.hiddenFee", won: 3000 }],
+  }]);
+  expect(ledger.stages[0].verification).toBe("SCREEN_NETWORK_PARTIAL");
+  expect(ledger.stages[0].networkValues).toEqual([
+    expect.objectContaining({ path: "$.total", matchedScreen: true }),
+    expect.objectContaining({ path: "$.hiddenFee", matchedScreen: false }),
+  ]);
+});
+
+test("브라우저 연결은 검증된 공개 주소로 고정하고 내부망·혼합 DNS·다른 포트를 거부한다", async () => {
+  const { safeConnectTarget } = await import("../src/safe-browser-proxy");
+  await expect(safeConnectTarget("cdn.shop.example.com:443", async () => ["93.184.216.34"]))
+    .resolves.toEqual({ hostname: "cdn.shop.example.com", address: "93.184.216.34", port: 443 });
+  for (const [authority, addresses] of [
+    ["cdn.shop.example.com:443", ["127.0.0.1"]],
+    ["cdn.shop.example.com:443", ["93.184.216.34", "10.0.0.1"]],
+    ["cdn.shop.example.com:80", ["93.184.216.34"]],
+    ["127.0.0.1:443", ["127.0.0.1"]],
+  ] as const) {
+    await expect(safeConnectTarget(authority, async () => [...addresses])).rejects.toThrow();
+  }
+});

@@ -20,6 +20,7 @@ model Shop {
 model Scan {
   id              String    @id
   scenario        String
+  executionMode   String    @default("STATIC")
   targetUrl       String
   status          String
   createdAt       DateTime  @default(now())

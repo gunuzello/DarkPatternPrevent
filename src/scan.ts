@@ -151,6 +151,7 @@ export async function scanDemo(browser: Browser, origin: string, scenario: Scena
     const report = {
       comparisonVersion: scanComparisonVersion,
       scanStatus: snapshots.length === stages.length ? "COMPLETED" : "PARTIAL",
+      executionMode: "DEMO" as const,
       scenario,
       targetUrl,
       snapshots,
