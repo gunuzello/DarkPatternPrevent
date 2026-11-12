@@ -120,7 +120,9 @@ export async function scanDemo(browser: Browser, origin: string, scenario: Scena
         await route.abort();
         return;
       }
-      await route.fulfill({ response });
+      // The page may navigate or the context may close while a late static asset
+      // is being proxied. That request is no longer evidence-critical.
+      await route.fulfill({ response }).catch(() => route.abort().catch(() => {}));
     });
     const page = await context.newPage();
     page.setDefaultTimeout(10_000);

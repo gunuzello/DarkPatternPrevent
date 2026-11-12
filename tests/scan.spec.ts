@@ -144,3 +144,28 @@ test("재진단은 같은 항목의 변화만 비교하고 누락된 단계는 �
   expect(compareScans(before, { ...after, snapshots: [] }).status).toBe("UNAVAILABLE");
   expect(compareScans(before, { ...after, comparisonVersion: undefined }).status).toBe("UNAVAILABLE");
 });
+
+test("동적 탐색은 주문서까지만 이동하고 가격 API의 비식별 숫자만 수집한다", async ({ page }) => {
+  const { explorePurchaseJourney } = await import("../src/purchase-journey");
+  await page.route("https://journey.example/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/cart") return route.fulfill({
+      contentType: "application/json", body: JSON.stringify({ cart: { total: 21000 }, email: "private@example.com" }),
+    });
+    const html = path === "/product"
+      ? `<button onclick="fetch('/api/cart').then(()=>setTimeout(()=>location='/cart',100))">장바구니에 담기</button>`
+      : path === "/cart"
+        ? `<a href="/checkout">주문하기</a>`
+        : `<h1>주문서</h1><button onclick="window.ordered=true">주문 확정</button>`;
+    return route.fulfill({ contentType: "text/html; charset=utf-8", body: html });
+  });
+  await page.goto("https://journey.example/product");
+  const visited: string[] = [];
+  const result = await explorePurchaseJourney(page, async (stage) => { visited.push(stage); });
+  await page.waitForTimeout(50);
+  expect(result.reached).toBe("checkout");
+  expect(visited).toEqual(["product", "cart", "checkout"]);
+  expect(await page.evaluate(() => (window as typeof window & { ordered?: boolean }).ordered)).toBeUndefined();
+  expect(result.network.flatMap(({ values }) => values)).toContainEqual({ path: "$.cart.total", won: 21000 });
+  expect(JSON.stringify(result.network)).not.toContain("private@example.com");
+});
