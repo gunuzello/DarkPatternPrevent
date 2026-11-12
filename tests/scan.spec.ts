@@ -169,3 +169,11 @@ test("동적 탐색은 주문서까지만 이동하고 가격 API의 비식별 �
   expect(result.network.flatMap(({ values }) => values)).toContainEqual({ path: "$.cart.total", won: 21000 });
   expect(JSON.stringify(result.network)).not.toContain("private@example.com");
 });
+
+test("사이트 확인 메타 태그는 속성 순서와 따옴표가 달라도 검증하고 위조 값은 거부한다", async () => {
+  const { createSiteVerification, matchesVerification, verificationName } = await import("../src/site-verification");
+  const verification = createSiteVerification();
+  expect(matchesVerification(`<meta content='${verification.token}' data-x="1" name='${verificationName}'>`, verification.hash)).toBe(true);
+  expect(matchesVerification(`<meta name="${verificationName}" content="forged">`, verification.hash)).toBe(false);
+  expect(matchesVerification(`<script>${verification.token}</script>`, verification.hash)).toBe(false);
+});

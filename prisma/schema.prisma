@@ -8,11 +8,13 @@ datasource db {
 }
 
 model Shop {
-  id        String   @id
-  url       String
-  ownerHash String
-  consentAt DateTime @default(now())
-  scans     Scan[]
+  id               String    @id
+  url              String
+  ownerHash        String
+  consentAt        DateTime  @default(now())
+  verificationHash String?
+  verifiedAt       DateTime?
+  scans            Scan[]
 }
 
 model Scan {

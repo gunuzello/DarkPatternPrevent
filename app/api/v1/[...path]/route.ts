@@ -8,6 +8,8 @@ import { evidenceDirectory } from "../../../../src/evidence-directory";
 import { scanTarget, demoOrigin } from "../../../../src/targets";
 import { compareScans } from "../../../../src/scan-comparison";
 import type { scanDemo } from "../../../../src/scan";
+import { fetchPublicHtml } from "../../../../src/public-html";
+import { createSiteVerification, matchesVerification, verificationName } from "../../../../src/site-verification";
 
 type Context = { params: Promise<{ path: string[] }> };
 type Report = Omit<Awaited<ReturnType<typeof scanDemo>>, "scenario"> & { scenario: string };
@@ -36,16 +38,43 @@ export async function POST(request: NextRequest, context: Context) {
       return error("공개 HTTPS 쇼핑몰 URL과 검사 동의가 필요합니다.", 400);
     }
     const token = session ?? randomUUID();
+    const verification = createSiteVerification();
     const shop = await db().shop.create({
-      data: { id: randomUUID(), url: target.url, ownerHash: hash(token) },
+      data: { id: randomUUID(), url: target.url, ownerHash: hash(token), verificationHash: verification.hash },
     });
-    const response = NextResponse.json({ shopId: shop.id, url: shop.url }, { status: 201 });
+    const response = NextResponse.json({
+      shopId: shop.id, url: shop.url,
+      verification: target.scenario === "public" ? {
+        name: verificationName, token: verification.token,
+        metaTag: `<meta name="${verificationName}" content="${verification.token}">`,
+      } : null,
+    }, { status: 201 });
     if (!session) response.cookies.set(cookie, token, { httpOnly: true, sameSite: "strict", path: "/", secure: request.nextUrl.protocol === "https:" });
     return response;
   }
 
   if (!session) return notFound();
   const ownerHash = hash(session);
+  if (route[0] === "shops" && route[1] && route[2] === "verify" && route.length === 3) {
+    const shop = await db().shop.findFirst({ where: { id: route[1], ownerHash } });
+    if (!shop) return notFound();
+    if (!shop.verificationHash) return error("확인 값을 다시 발급해 주세요.", 409);
+    const target = scanTarget(shop.url);
+    if (!target) return error("지원하는 쇼핑몰 주소가 아닙니다.", 400);
+    if (target.scenario !== "public") {
+      const verifiedAt = new Date();
+      await db().shop.update({ where: { id: shop.id }, data: { verifiedAt } });
+      return Response.json({ verified: true, verifiedAt });
+    }
+    // Prove control of the storefront itself, not merely a user-supplied deep URL.
+    const verificationUrl = new URL("/", shop.url).href;
+    const document = await fetchPublicHtml(verificationUrl).catch(() => null);
+    if (!document || !matchesVerification(document.html, shop.verificationHash)) {
+      return error(`쇼핑몰 첫 화면의 ${verificationName} 값을 확인하지 못했습니다.`, 409);
+    }
+    const verified = await db().shop.update({ where: { id: shop.id }, data: { verifiedAt: new Date() } });
+    return Response.json({ verified: true, verifiedAt: verified.verifiedAt });
+  }
   if (route.join("/") === "scans" && typeof body?.shopId === "string") {
     const shop = await db().shop.findFirst({ where: { id: body.shopId, ownerHash } });
     if (!shop) return notFound();
@@ -106,7 +135,7 @@ export async function GET(request: NextRequest, context: Context) {
 
   if (resource === "shops" && !action) {
     const shop = await db().shop.findFirst({
-      where: { id, ownerHash }, select: { id: true, url: true, consentAt: true },
+      where: { id, ownerHash }, select: { id: true, url: true, consentAt: true, verifiedAt: true },
     });
     return shop ? Response.json(shop) : notFound();
   }
