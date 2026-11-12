@@ -4,11 +4,23 @@ const amounts = (lines: string[]) => new Set(lines.flatMap((line) =>
   [...line.matchAll(/(?:₩\s*)?(\d[\d,]*)\s*원/g)].map((match) => Number(match[1].replaceAll(",", ""))),
 ));
 
-export function buildPriceLedger(snapshots: Snapshot[], network: NetworkPriceEvidence[] = []) {
+export type FirstPriceExposure = {
+  status: "OBSERVED";
+  url: string;
+  productUrl: string;
+  text: string;
+  amounts: number[];
+  screenshot: string;
+  capturedAt: string;
+};
+
+export function buildPriceLedger(
+  snapshots: Snapshot[], network: NetworkPriceEvidence[] = [], firstPriceExposure?: FirstPriceExposure,
+) {
   return {
     version: 1,
     currency: "KRW",
-    firstPriceExposure: { status: "NOT_VERIFIED" },
+    firstPriceExposure: firstPriceExposure ?? { status: "NOT_VERIFIED" as const },
     stages: snapshots.map((snapshot) => {
       const screenAmounts = amounts(snapshot.priceLines);
       const observed = network.filter((item) => item.stage === snapshot.stage).flatMap((item) =>

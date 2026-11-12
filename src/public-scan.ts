@@ -1,5 +1,5 @@
 import { scanComparisonVersion } from "./scan-comparison";
-import { buildPriceLedger } from "./price-ledger";
+import { buildPriceLedger, type FirstPriceExposure } from "./price-ledger";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Browser, Page } from "playwright";
@@ -34,6 +34,7 @@ export async function scanPublicShop(
 ) {
   const context = await browser.newContext({ offline: true, javaScriptEnabled: false, serviceWorkers: "block", acceptDownloads: false });
   try {
+    await mkdir(directory, { recursive: true });
     await context.route("**/*", (route) => route.abort());
     const page = await context.newPage();
     page.setDefaultTimeout(8000);
@@ -43,19 +44,29 @@ export async function scanPublicShop(
     );
     let document = await load(targetUrl);
     await render(document.html);
+    let firstPriceExposure: FirstPriceExposure | undefined;
     if (!await isProductPage(page, document.url)) {
       const origin = new URL(document.url).origin;
-      const links = await page.locator("a[href]").evaluateAll((anchors) =>
-        anchors.filter((anchor) => anchor.checkVisibility()).slice(0, 250).map((anchor) => anchor.getAttribute("href") ?? ""));
+      const listingUrl = document.url;
+      const links = await page.locator("a[href]").evaluateAll((anchors) => anchors
+        .filter((anchor) => anchor.checkVisibility()).slice(0, 250).map((anchor) => ({
+          href: anchor.getAttribute("href") ?? "",
+          context: (anchor.closest("article, li, [class*='product' i], [class*='item' i]") ?? anchor).textContent?.replace(/\s+/g, " ").trim().slice(0, 500) ?? "",
+        })));
       const candidates = new Set<string>();
-      for (const href of links) {
+      const contexts = new Map<string, string>();
+      for (const { href, context } of links) {
         let url: URL | null;
         try { url = publicShopUrl(new URL(href, document.url).href); } catch { continue; }
         if (!url || url.origin !== origin || url.href === document.url || !productPath.test(url.pathname) ||
             [...url.searchParams.keys()].some((key) => /^(?:action|add-to-cart|redirect|return_url)$/i.test(key))) continue;
         candidates.add(url.href);
+        if (!contexts.has(url.href)) contexts.set(url.href, context);
         if (candidates.size === 3) break;
       }
+      const listingScreenshot = "listing.png";
+      await page.screenshot({ path: join(directory, listingScreenshot), fullPage: false, scale: "css" });
+      const listingCapturedAt = new Date().toISOString();
       let found = false;
       for (const candidate of candidates) {
         const next = await load(candidate).catch(() => null);
@@ -63,6 +74,13 @@ export async function scanPublicShop(
         await render(next.html);
         if (!await isProductPage(page, next.url)) continue;
         document = next;
+        const text = contexts.get(candidate) ?? "";
+        const observedAmounts = [...text.matchAll(/(?:₩\s*)?(\d[\d,]*)\s*원/g)]
+          .map((match) => Number(match[1].replaceAll(",", ""))).filter((amount) => Number.isFinite(amount) && amount > 0);
+        if (observedAmounts.length) firstPriceExposure = {
+          status: "OBSERVED", url: listingUrl, productUrl: next.url, text,
+          amounts: [...new Set(observedAmounts)], screenshot: listingScreenshot, capturedAt: listingCapturedAt,
+        };
         found = true;
         break;
       }
@@ -70,13 +88,12 @@ export async function scanPublicShop(
     }
 
     await page.locator("body").waitFor({ state: "visible" });
-    await mkdir(directory, { recursive: true });
     const product = await capture(page, "product", directory, page.locator("body"), document.url, false);
     await onStage(product);
     const report = {
       comparisonVersion: scanComparisonVersion,
       scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, scenario: "public" as const, targetUrl,
-      snapshots: [product], priceLedger: buildPriceLedger([product]), findings: detect([product]),
+      snapshots: [product], priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]),
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
     return report;
