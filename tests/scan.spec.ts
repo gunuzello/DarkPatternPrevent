@@ -78,3 +78,34 @@ test("주문서 접근 실패 시 앞 단계의 증거와 사전선택 발견을
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
+
+test("외부 쇼핑몰 형식의 상품을 로컬 증거로 검사하고 후속 단계는 남겨 둔다", async ({ browser }, info) => {
+  const { scanPublicShop } = await import("../src/public-scan");
+  const visited: string[] = [];
+  const target = "https://store.example.com/";
+  const report = await scanPublicShop(browser, target, info.outputPath("public"), async () => {}, async (url) => {
+    visited.push(url);
+    return {
+      url,
+      html: url === target
+        ? '<a href="https://other.example.com/products/no">다른 상점</a><a href="/products/gift">상품 상세</a>'
+        : '<button>장바구니에 담기</button><label><input type="checkbox" checked>선물 포장 (+2,000원)</label>',
+    };
+  });
+  expect(visited).toEqual([target, target + "products/gift"]);
+  expect(report.scanStatus).toBe("PARTIAL");
+  expect(report.snapshots.map(({ stage }) => stage)).toEqual(["product"]);
+  expect(report.findings.map(({ type }) => type)).toEqual(["PRESELECTION"]);
+});
+
+test("외부 대상 검사는 사설 주소나 혼합 DNS 응답을 거부한다", async () => {
+  const { publicAddress } = await import("../src/public-html");
+  const { scanTarget } = await import("../src/targets");
+  for (const url of ["http://store.example.com", "https://127.0.0.1/", "https://[::1]/", "https://a.local/", "https://store.example.com:9443/", "https://user@store.example.com/"]) {
+    expect(scanTarget(url)).toBeNull();
+  }
+  expect(publicAddress(["8.8.8.8", "169.254.169.254"])).toBeNull();
+  expect(publicAddress(["192.168.0.1"])).toBeNull();
+  expect(publicAddress(["8.8.8.8"])).toBe("8.8.8.8");
+  expect(scanTarget("https://store.example.com/products/1")?.scenario).toBe("public");
+});

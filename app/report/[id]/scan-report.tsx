@@ -9,6 +9,7 @@ import { post, scanRequest } from "../../scan-request";
 
 type Report = {
   shopId: string;
+  scenario: string;
   scanStatus: "COMPLETED" | "PARTIAL";
   targetUrl: string;
   coverage: Record<Stage, string>;
@@ -44,6 +45,7 @@ export function ScanReport({ id }: { id: string }) {
         <div><dt>미검사</dt><dd>{report.summary.notTested}</dd></div>
       </dl>
       <h2>검사 범위</h2>
+      {report.scenario === "public" && <p>공개 상품의 초기 HTML을 검사했습니다. 장바구니·주문서의 추가 비용과 스크립트 실행 후 표시되는 항목은 미검사입니다.</p>}
       <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {report.coverage[stage] === "COVERED" ? "검사 완료" : "미검사"}</li>)}</ul>
       <h2>발견된 항목</h2>
       {report.findings.length ? <ul>{report.findings.map((finding) => (

@@ -26,7 +26,7 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
 
   return (
     <form onSubmit={submit}>
-      <p>공모전 데모에서는 아래 두 상품 URL을 검사할 수 있습니다.</p>
+      <p>공개 HTTPS 쇼핑몰 또는 상품 상세 URL을 입력하세요. 외부 쇼핑몰은 공개 상품 화면을 읽어 사전선택을 점검합니다.</p>
       <div className="choices">
         <button type="button" className="action secondary" onClick={() => setUrl(risky)}>위험 데모 URL 사용</button>
         <button type="button" className="action secondary" onClick={() => setUrl(clean)}>정상 데모 URL 사용</button>

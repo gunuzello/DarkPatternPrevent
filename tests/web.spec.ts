@@ -18,6 +18,10 @@ test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async
   for (const data of [{ url: riskyUrl, consent: false }, { url: "https://example.invalid", consent: true }]) {
     expect((await request.post(api + "shops", { data })).status()).toBe(400);
   }
+  const external = await request.post(api + "shops", {
+    data: { url: "https://store.example.com/products/gift", consent: true },
+  });
+  expect(external.status()).toBe(201);
   const shop = await (await request.post(api + "shops", { data: { url: riskyUrl, consent: true } })).json();
   const submitted = await request.post(api + "scans", { data: {
     shopId: shop.shopId, profile: "CONTEST", flows: ["PURCHASE"], productLimit: 1, viewport: "DESKTOP",

@@ -5,11 +5,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "../../../../src/db";
 import { stages } from "../../../../src/demo";
 import { evidenceDirectory } from "../../../../src/evidence-directory";
-import { allowedScenario, demoOrigin } from "../../../../src/targets";
+import { scanTarget, demoOrigin } from "../../../../src/targets";
 import type { scanDemo } from "../../../../src/scan";
 
 type Context = { params: Promise<{ path: string[] }> };
-type Report = Awaited<ReturnType<typeof scanDemo>>;
+type Report = Omit<Awaited<ReturnType<typeof scanDemo>>, "scenario"> & { scenario: string };
 const cookie = "darkpattern-session";
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 const error = (message: string, status: number) => Response.json({ error: message }, { status });
@@ -30,12 +30,13 @@ export async function POST(request: NextRequest, context: Context) {
   const session = request.cookies.get(cookie)?.value;
 
   if (route.join("/") === "shops") {
-    if (body?.consent !== true || !allowedScenario(body.url)) {
-      return error("허용된 데모 상품 URL과 검사 동의가 필요합니다.", 400);
+    const target = scanTarget(body?.url);
+    if (body?.consent !== true || !target) {
+      return error("공개 HTTPS 쇼핑몰 URL과 검사 동의가 필요합니다.", 400);
     }
     const token = session ?? randomUUID();
     const shop = await db().shop.create({
-      data: { id: randomUUID(), url: body.url, ownerHash: hash(token) },
+      data: { id: randomUUID(), url: target.url, ownerHash: hash(token) },
     });
     const response = NextResponse.json({ shopId: shop.id, url: shop.url }, { status: 201 });
     if (!session) response.cookies.set(cookie, token, { httpOnly: true, sameSite: "strict", path: "/", secure: request.nextUrl.protocol === "https:" });
@@ -47,15 +48,15 @@ export async function POST(request: NextRequest, context: Context) {
   if (route.join("/") === "scans" && typeof body?.shopId === "string") {
     const shop = await db().shop.findFirst({ where: { id: body.shopId, ownerHash } });
     if (!shop) return notFound();
-    const scenario = allowedScenario(shop.url);
-    if (!scenario) return error("현재 허용 목록에 없는 데모입니다.", 400);
+    const target = scanTarget(shop.url);
+    if (!target) return error("지원하는 쇼핑몰 주소가 아닙니다.", 400);
     if (body.profile !== "CONTEST" || body.viewport !== "DESKTOP" ||
         !Array.isArray(body.flows) || body.flows.length !== 1 || body.flows[0] !== "PURCHASE" ||
         body.productLimit !== 1) {
       return error("데스크톱 구매 흐름에서 상품 1개를 진단할 수 있습니다.", 400);
     }
     const scan = await db().scan.create({
-      data: { id: randomUUID(), shopId: shop.id, targetUrl: shop.url, scenario, status: "QUEUED" },
+      data: { id: randomUUID(), shopId: shop.id, targetUrl: target.url, scenario: target.scenario, status: "QUEUED" },
     });
     return Response.json({ scanId: scan.id, status: scan.status, createdAt: scan.createdAt }, { status: 202 });
   }

@@ -1,12 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { Browser, Page } from "playwright";
+import type { Browser, Locator, Page } from "playwright";
 import { stages, type Scenario, type Stage } from "./demo";
 import { mandatoryFeeFromText, paidOptionFromText } from "./price-text";
 import { detect, type Snapshot } from "./rules";
 
-async function capture(page: Page, stage: Stage, directory: string): Promise<Snapshot> {
-  const main = page.locator('main[data-stage="' + stage + '"]');
+export async function capture(page: Page, stage: Stage, directory: string, main: Locator, url = page.url(), fullPage = true): Promise<Snapshot> {
   await main.waitFor({ state: "visible" });
 
   const optionSelector = [
@@ -79,8 +78,8 @@ async function capture(page: Page, stage: Stage, directory: string): Promise<Sna
   const displayedPrices = await main.locator('[aria-label="가격 내역"] li, [data-total]').allInnerTexts();
   const priceLines = [...new Set([...displayedPrices, ...textFees.map(({ label }) => label)])];
   const screenshot = stage + ".png";
-  await page.screenshot({ path: join(directory, screenshot), fullPage: true });
-  return { stage, url: page.url(), screenshot, priceLines, options, fees };
+  await page.screenshot({ path: join(directory, screenshot), fullPage });
+  return { stage, url, screenshot, priceLines, options, fees };
 }
 
 export async function scanDemo(browser: Browser, origin: string, scenario: Scenario, directory: string, onStage?: (snapshot: Snapshot) => Promise<void>) {
@@ -127,7 +126,7 @@ export async function scanDemo(browser: Browser, origin: string, scenario: Scena
         } else {
           await page.getByRole("link", { name: "주문서 보기", exact: true }).click();
         }
-        snapshot = await capture(page, stage, directory);
+        snapshot = await capture(page, stage, directory, page.locator('main[data-stage="' + stage + '"]'));
       } catch (error) {
         if (snapshots.length === 0) throw error;
         break;
