@@ -88,11 +88,13 @@ test("외부 쇼핑몰 형식의 상품을 로컬 증거로 검사하고 후속 
     return {
       url,
       html: url === target
-        ? '<a href="https://other.example.com/products/no">다른 상점</a><a href="/products/gift">상품 상세</a>'
-        : '<button>장바구니에 담기</button><label><input type="checkbox" checked>선물 포장 (+2,000원)</label>',
+        ? '<a href="https://other.example.com/products/no">다른 상점</a><a href="/product/search.html?keyword=">상품검색</a><a href="/products/category-landing">기획전</a><a href="/products/gift">상품 상세</a>'
+        : url.endsWith("category-landing")
+          ? "<h1>기획전</h1>"
+          : '<meta property="og:type" content="product"><meta property="product:price:amount" content="20000"><label><input type="checkbox" checked>선물 포장 (+2,000원)</label>',
     };
   });
-  expect(visited).toEqual([target, target + "products/gift"]);
+  expect(visited).toEqual([target, target + "products/category-landing", target + "products/gift"]);
   expect(report.scanStatus).toBe("PARTIAL");
   expect(report.snapshots.map(({ stage }) => stage)).toEqual(["product"]);
   expect(report.findings.map(({ type }) => type)).toEqual(["PRESELECTION"]);
