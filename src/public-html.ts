@@ -1,6 +1,6 @@
 import { Resolver } from "node:dns/promises";
 import { get } from "node:https";
-import { BlockList } from "node:net";
+import { BlockList, isIP } from "node:net";
 import { publicShopUrl } from "./targets";
 
 const blocked = new BlockList();
@@ -11,8 +11,36 @@ for (const [address, prefix] of [
   ["203.0.113.0", 24], ["224.0.0.0", 3],
 ] as const) blocked.addSubnet(address, prefix, "ipv4");
 
+// Adapted from the address classification in Consent Compass. See THIRD_PARTY_NOTICES.md.
+const globalIPv6 = new BlockList();
+globalIPv6.addSubnet("2000::", 3, "ipv6");
+
+const reservedIPv6 = new BlockList();
+reservedIPv6.addSubnet("2001::", 23, "ipv6"); // IETF protocol assignments
+reservedIPv6.addSubnet("2001:db8::", 32, "ipv6"); // documentation
+reservedIPv6.addSubnet("2002::", 16, "ipv6"); // 6to4
+reservedIPv6.addSubnet("3fff::", 20, "ipv6"); // documentation
+
+function isPublicAddress(address: string) {
+  if (address.includes("%")) return false;
+  const family = isIP(address);
+  if (family === 4) return !blocked.check(address, "ipv4");
+  return family === 6 && globalIPv6.check(address, "ipv6") && !reservedIPv6.check(address, "ipv6");
+}
+
 export function publicAddress(addresses: string[]) {
-  return addresses.length && addresses.every((address) => !blocked.check(address, "ipv4")) ? addresses[0] : null;
+  if (!addresses.length || addresses.some((address) => !isPublicAddress(address))) return null;
+  return addresses.find((address) => isIP(address) === 4) ?? addresses[0];
+}
+
+async function resolvePublicAddress(dns: Resolver, hostname: string) {
+  const records = await Promise.allSettled([dns.resolve4(hostname), dns.resolve6(hostname)]);
+  const addresses = records.flatMap((result) => {
+    if (result.status === "fulfilled") return result.value;
+    if ((result.reason as NodeJS.ErrnoException)?.code === "ENODATA") return [];
+    throw result.reason;
+  });
+  return publicAddress(addresses);
 }
 
 const maxBytes = 2 * 1024 * 1024;
@@ -69,7 +97,7 @@ export async function fetchPublicHtml(input: string) {
   const rootHost = url.hostname.replace(/^www\./, "");
   const dns = new Resolver({ timeout: 2500, tries: 1 });
   for (let attempt = 0; attempt < 4; attempt++) {
-    const address = publicAddress(await dns.resolve4(url.hostname));
+    const address = await resolvePublicAddress(dns, url.hostname);
     if (!address) throw new Error("공개 IP로 연결할 수 없습니다.");
     const result = await download(url, address);
     if ("html" in result) return { url: url.href, html: result.html };

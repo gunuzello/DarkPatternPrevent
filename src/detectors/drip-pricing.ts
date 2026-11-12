@@ -24,6 +24,7 @@ export function detectDripPricing(product: Snapshot, later: Snapshot[]): Finding
         ruleVersion: "3",
         stage: snapshot.stage,
         reason: "상품 상세 이후에 필수 비용이 처음 표시됩니다. " + fee.label,
+        elementBounds: fee.bounds,
         evidence: [product, snapshot],
       });
       disclosed.push(fee);

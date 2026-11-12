@@ -10,9 +10,24 @@ export type Snapshot = {
   stage: Stage;
   url: string;
   screenshot: string;
+  capturedAt?: string;
+  screenshotArea?: Bounds;
   priceLines: string[];
   options: Option[];
   fees: Fee[];
+};
+export type InteractionEvidence = {
+  id: string;
+  stage: Stage;
+  kind: "INITIAL_STATE" | "PAID_OPTION_TOGGLE" | "NAVIGATION";
+  capturedAt: string;
+  controlLabel?: string;
+  beforeSelected?: boolean;
+  afterSelected?: boolean;
+  beforeTotalWon?: number | null;
+  afterTotalWon?: number | null;
+  amountDeltaWon?: number | null;
+  outcome: "OBSERVED" | "NO_LIVE_CHANGE" | "NOT_APPLICABLE";
 };
 export type Finding = {
   type: "PRESELECTION" | "DRIP_PRICING";
@@ -21,6 +36,7 @@ export type Finding = {
   stage: Stage;
   reason: string;
   evidence: Snapshot[];
+  elementBounds?: Bounds;
 };
 
 export function detect([product, ...later]: Snapshot[]): Finding[] {

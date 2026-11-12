@@ -1,3 +1,5 @@
+import { scanComparisonVersion } from "./scan-comparison";
+import { buildPriceLedger } from "./price-ledger";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Browser, Page } from "playwright";
@@ -72,8 +74,9 @@ export async function scanPublicShop(
     const product = await capture(page, "product", directory, page.locator("body"), document.url, false);
     await onStage(product);
     const report = {
+      comparisonVersion: scanComparisonVersion,
       scanStatus: "PARTIAL" as const, scenario: "public" as const, targetUrl,
-      snapshots: [product], findings: detect([product]),
+      snapshots: [product], priceLedger: buildPriceLedger([product]), findings: detect([product]),
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
     return report;

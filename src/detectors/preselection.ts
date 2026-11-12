@@ -10,6 +10,7 @@ export function detectPreselection(product: Snapshot): Finding[] {
         ruleVersion: "3",
         stage: "product",
         reason: "유료 옵션이 기본 선택되어 있습니다. " + option.label,
+        elementBounds: option.bounds,
         evidence: [product],
       });
     }

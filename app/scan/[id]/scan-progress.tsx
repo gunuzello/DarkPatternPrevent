@@ -9,6 +9,7 @@ import { post, scanRequest } from "../../scan-request";
 type Status = "QUEUED" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED" | "CANCELLED";
 type ScanState = {
   shopId: string;
+  scenario?: string;
   status: Status;
   cancelRequested: boolean;
   progress: number;
@@ -70,7 +71,7 @@ export function ScanProgress({ id }: { id: string }) {
       <p role="status"><strong>{scan.cancelRequested && active ? "중단 요청 처리 중" : labels[scan.status]}</strong></p>
       {active && <progress aria-label="진단 진행률" value={scan.progress} max={100} />}
       <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {
-        scan.coverage[stage] === "COVERED" ? "검사 완료" : scan.coverage[stage] === "BLOCKED" ? "미검사" : "대기"
+        scan.coverage[stage] === "COVERED" ? (scan.scenario === "public" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : scan.coverage[stage] === "BLOCKED" ? "미검사" : "대기"
       }</li>)}</ul>
       {active && <button className="action secondary" disabled={pending || scan.cancelRequested} onClick={() => act("cancel")}>진단 중단</button>}
       {reportReady && <Link className="action" href={"/report/" + id}>진단 결과 보기</Link>}

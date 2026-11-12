@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { stages, stageLabels, type Stage } from "../../../src/demo";
 import { legalRules } from "../../../src/legal-rules";
+import type { compareScans } from "../../../src/scan-comparison";
 import { post, scanRequest } from "../../scan-request";
 
 type Report = {
@@ -14,6 +15,7 @@ type Report = {
   targetUrl: string;
   coverage: Record<Stage, string>;
   summary: { suspected: number; reviewNeeded: number; notTested: number };
+  comparison?: (ReturnType<typeof compareScans> & { baselineScanId: string }) | null;
   findings: { id: number; type: keyof typeof legalRules; stage: Stage; reason: string }[];
 };
 
@@ -46,15 +48,38 @@ export function ScanReport({ id }: { id: string }) {
       </dl>
       <h2>검사 범위</h2>
       {report.scenario === "public" && <p>공개 상품의 초기 HTML을 검사했습니다. 장바구니·주문서의 추가 비용과 스크립트 실행 후 표시되는 항목은 미검사입니다.</p>}
-      <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {report.coverage[stage] === "COVERED" ? "검사 완료" : "미검사"}</li>)}</ul>
+      <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {report.coverage[stage] === "COVERED" ? (report.scenario === "public" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : "미검사"}</li>)}</ul>
       <h2>발견된 항목</h2>
       {report.findings.length ? <ul>{report.findings.map((finding) => (
         <li key={finding.id}><Link href={"/report/" + id + "/" + finding.id}>{legalRules[finding.type].title}</Link> · {stageLabels[finding.stage]}</li>
-      ))}</ul> : <p>검사한 범위에서 위험 신호가 발견되지 않았습니다.</p>}
+      ))}</ul> : <p>{report.scenario === "public" ? "초기 HTML에서 지원하는 문구 규칙에 해당하는 항목을 찾지 못했습니다. 실제 선택 과정과 구매 흐름에 대한 추가 검사가 필요합니다." : "검사한 범위에서 위험 신호가 발견되지 않았습니다."}</p>}
+      {report.comparison && (
+        <section>
+          <h2>재진단 비교</h2>
+          <Link href={"/report/" + report.comparison.baselineScanId}>기준 보고서 보기</Link>
+          {report.comparison.status === "UNAVAILABLE" ? <p>{report.comparison.reason}</p> : (
+            <>
+              <p>동일한 검사 범위에서 관측한 위험 신호의 변화입니다.</p>
+              {([
+                ["신규", report.comparison.added],
+                ["재발견", report.comparison.repeated],
+                ["이번에 미발견", report.comparison.notObserved],
+              ] as const).map(([label, signals]) => (
+                <div key={label}>
+                  <h3>{label} {signals.length}건</h3>
+                  {signals.length > 0 && <ul>{signals.map((signal, index) => (
+                    <li key={index}>{stageLabels[signal.stage]} · {signal.reason}</li>
+                  ))}</ul>}
+                </div>
+              ))}
+            </>
+          )}
+        </section>
+      )}
       <button className="action" disabled={pending} onClick={async () => {
         setPending(true);
         try {
-          const next = await post("scans", scanRequest(report.shopId));
+          const next = await post("scans", scanRequest(report.shopId, id));
           router.push("/scan/" + next.scanId);
         } catch {
           setError("재진단을 시작하지 못했습니다.");

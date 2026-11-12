@@ -46,12 +46,23 @@ test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진�
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "진단 시작" }).click();
   await page.getByRole("link", { name: "진단 결과 보기" }).click({ timeout: 20_000 });
+  await page.waitForURL("**/report/*");
   const reportUrl = page.url();
+  const baselineScanId = new URL(reportUrl).pathname.split("/").at(-1);
+  const differentShop = await page.request.post(origin + "/api/v1/shops", {
+    data: { url: riskyUrl, consent: true },
+  });
+  const { shopId } = await differentShop.json();
+  const wrongBaseline = await page.request.post(origin + "/api/v1/scans", { data: {
+    shopId, baselineScanId, profile: "CONTEST", flows: ["PURCHASE"], productLimit: 1, viewport: "DESKTOP",
+  } });
+  expect(wrongBaseline.status()).toBe(404);
   await expect(page.getByRole("link", { name: "특정 옵션의 사전선택" })).toBeVisible();
   await page.getByRole("link", { name: "순차공개 가격책정" }).click();
   await expect(page.getByRole("heading", { name: "순차공개 가격책정" })).toBeVisible();
   await expect(page.getByRole("link", { name: /제21조의2/ })).toBeVisible();
   const image = page.getByRole("img", { name: "주문서 진단 화면" });
+  await expect(page.getByRole("img", { name: "위험 신호 위치" })).toBeVisible();
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
   const evidence = (await image.getAttribute("src"))!;
   const anonymous = await playwright.request.newContext();
@@ -63,6 +74,11 @@ test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진�
   await page.getByRole("link", { name: "진단 결과로 돌아가기" }).click();
   await page.getByRole("button", { name: "같은 조건으로 재진단" }).click();
   await page.getByRole("link", { name: "진단 결과 보기" }).click({ timeout: 20_000 });
+  await page.waitForURL("**/report/*");
   expect(page.url()).not.toBe(reportUrl);
+  await expect(page.getByRole("heading", { name: "재진단 비교" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "재발견 2건" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "이번에 미발견 0건" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "기준 보고서 보기" })).toHaveAttribute("href", new URL(reportUrl).pathname);
   await expect(page.getByRole("link", { name: "순차공개 가격책정" })).toBeVisible();
 });

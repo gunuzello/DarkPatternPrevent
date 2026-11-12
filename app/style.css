@@ -23,3 +23,13 @@ progress { width: 100%; accent-color: #185643; }
 figure { margin: 1rem 0; }
 figcaption { font-weight: 700; margin-bottom: .5rem; }
 .evidence { display: block; width: 100%; height: auto; border: 1px solid #d9e4da; border-radius: .5rem; }
+
+.evidence-image { position: relative; }
+.evidence-image .evidence { display: block; border: 0; }
+.evidence-highlight {
+  position: absolute;
+  box-sizing: border-box;
+  outline: 3px solid #ae2115;
+  box-shadow: 0 0 0 5px white;
+  pointer-events: none;
+}

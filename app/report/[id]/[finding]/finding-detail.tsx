@@ -33,13 +33,31 @@ export function FindingDetail({ id, finding }: { id: string; finding: string }) 
       <p>{rule.recommendation}</p>
       <p><a href={rule.source}>{rule.reference}</a></p>
       <h2>화면 증거</h2>
-      {detail.evidence.map((snapshot) => (
-        <figure key={snapshot.stage}>
-          <figcaption>{stageLabels[snapshot.stage]}</figcaption>
-          <img className="evidence" src={"/api/v1/evidences/" + id + "-" + snapshot.stage} alt={stageLabels[snapshot.stage] + " 진단 화면"} />
-          <ul>{snapshot.priceLines.map((line, index) => <li key={index}>{line}</li>)}</ul>
-        </figure>
-      ))}
+      {detail.evidence.map((snapshot) => {
+        const area = snapshot.screenshotArea;
+        const element = snapshot.stage === detail.stage ? detail.elementBounds : undefined;
+        const left = area && element ? Math.max(0, element.x - area.x) : 0;
+        const top = area && element ? Math.max(0, element.y - area.y) : 0;
+        const right = area && element ? Math.min(area.width, element.x + element.width - area.x) : 0;
+        const bottom = area && element ? Math.min(area.height, element.y + element.height - area.y) : 0;
+        return (
+          <figure key={snapshot.stage}>
+            <figcaption>{stageLabels[snapshot.stage]}</figcaption>
+            <div className="evidence-image">
+              <img className="evidence" src={"/api/v1/evidences/" + id + "-" + snapshot.stage} alt={stageLabels[snapshot.stage] + " 진단 화면"} />
+              {area && right > left && bottom > top && (
+                <span role="img" aria-label="위험 신호 위치" className="evidence-highlight" style={{
+                  left: (left / area.width) * 100 + "%",
+                  top: (top / area.height) * 100 + "%",
+                  width: ((right - left) / area.width) * 100 + "%",
+                  height: ((bottom - top) / area.height) * 100 + "%",
+                }} />
+              )}
+            </div>
+            <ul>{snapshot.priceLines.map((line, index) => <li key={index}>{line}</li>)}</ul>
+          </figure>
+        );
+      })}
     </>
   );
 }

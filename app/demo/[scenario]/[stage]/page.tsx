@@ -31,7 +31,7 @@ export default async function DemoPage({ params, searchParams }: Props) {
 
   return (
     <main data-stage={stage}>
-      <Link href="/">DarkPattern Guard</Link>
+      <Link href="/">바로미</Link>
       <p className="eyebrow">모의 쇼핑몰 · {risky ? "위험 사례" : "정상 사례"}</p>
       <h1>{title}</h1>
       <ul aria-label="가격 내역">

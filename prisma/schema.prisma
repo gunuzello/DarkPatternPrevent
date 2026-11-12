@@ -28,6 +28,11 @@ model Scan {
   progress        Int       @default(0)
   cancelRequested Boolean   @default(false)
   findings        Finding[]
+  baselineScanId  String?
+  baseline        Scan?     @relation("ScanBaseline", fields: [baselineScanId], references: [id], onDelete: SetNull)
+  rescans         Scan[]    @relation("ScanBaseline")
+
+  @@index([baselineScanId])
 
   @@index([status, createdAt])
 }

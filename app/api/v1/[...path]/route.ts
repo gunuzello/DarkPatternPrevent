@@ -6,6 +6,7 @@ import { db } from "../../../../src/db";
 import { stages } from "../../../../src/demo";
 import { evidenceDirectory } from "../../../../src/evidence-directory";
 import { scanTarget, demoOrigin } from "../../../../src/targets";
+import { compareScans } from "../../../../src/scan-comparison";
 import type { scanDemo } from "../../../../src/scan";
 
 type Context = { params: Promise<{ path: string[] }> };
@@ -55,8 +56,20 @@ export async function POST(request: NextRequest, context: Context) {
         body.productLimit !== 1) {
       return error("데스크톱 구매 흐름에서 상품 1개를 진단할 수 있습니다.", 400);
     }
+    const baselineScanId = body.baselineScanId;
+    if (baselineScanId !== undefined) {
+      if (typeof baselineScanId !== "string") return error("기준 진단 ID를 확인해 주세요.", 400);
+      const baseline = await db().scan.findFirst({
+        where: {
+          id: baselineScanId, shopId: shop.id, targetUrl: target.url, scenario: target.scenario,
+          status: { in: ["COMPLETED", "PARTIAL"] }, reportPath: { not: null },
+        },
+        select: { id: true },
+      });
+      if (!baseline) return notFound();
+    }
     const scan = await db().scan.create({
-      data: { id: randomUUID(), shopId: shop.id, targetUrl: target.url, scenario: target.scenario, status: "QUEUED" },
+      data: { id: randomUUID(), shopId: shop.id, targetUrl: target.url, scenario: target.scenario, baselineScanId, status: "QUEUED" },
     });
     return Response.json({ scanId: scan.id, status: scan.status, createdAt: scan.createdAt }, { status: 202 });
   }
@@ -133,14 +146,23 @@ export async function GET(request: NextRequest, context: Context) {
   };
   if (!action) {
     return Response.json({
-      scanId: scan.id, shopId: scan.shopId, status: scan.status, cancelRequested: scan.cancelRequested,
+      scanId: scan.id, shopId: scan.shopId, scenario: scan.scenario, status: scan.status, cancelRequested: scan.cancelRequested,
       progress: active ? Math.round(scan.progress * 100 / stages.length) : 100, coverage, summary,
     });
   }
   if (action === "findings") return Response.json(scan.findings);
   if (action === "report" && scan.reportPath) {
     const report = await getReport(scan.reportPath);
-    return Response.json({ ...report, scanId: scan.id, shopId: scan.shopId, coverage, summary,
+    const baseline = scan.baselineScanId ? await db().scan.findFirst({
+      where: { id: scan.baselineScanId, shopId: scan.shopId, shop: { ownerHash } },
+      select: { reportPath: true },
+    }) : null;
+    const before = await getReport(baseline?.reportPath ?? null).catch(() => null);
+    const comparison = scan.baselineScanId && report
+      ? { baselineScanId: scan.baselineScanId, ...(before ? compareScans(before, report)
+        : { status: "UNAVAILABLE" as const, reason: "기준 보고서를 읽을 수 없습니다." }) }
+      : null;
+    return Response.json({ ...report, comparison, scanId: scan.id, shopId: scan.shopId, coverage, summary,
       findings: scan.findings });
   }
   return notFound();

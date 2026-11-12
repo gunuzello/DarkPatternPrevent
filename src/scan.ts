@@ -1,9 +1,12 @@
+import { scanComparisonVersion } from "./scan-comparison";
+import { buildPriceLedger } from "./price-ledger";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Browser, Locator, Page } from "playwright";
 import { stages, type Scenario, type Stage } from "./demo";
 import { mandatoryFeeFromText, paidOptionFromText } from "./price-text";
 import { detect, type Snapshot } from "./rules";
+import { observePaidOptionChanges } from "./journey-evidence";
 
 export async function capture(page: Page, stage: Stage, directory: string, main: Locator, url = page.url(), fullPage = true): Promise<Snapshot> {
   await main.waitFor({ state: "visible" });
@@ -78,8 +81,12 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
   const displayedPrices = await main.locator('[aria-label="가격 내역"] li, [data-total]').allInnerTexts();
   const priceLines = [...new Set([...displayedPrices, ...textFees.map(({ label }) => label)])];
   const screenshot = stage + ".png";
-  await page.screenshot({ path: join(directory, screenshot), fullPage });
-  return { stage, url, screenshot, priceLines, options, fees };
+  const origin = fullPage ? { x: 0, y: 0 } : await page.evaluate(() => ({ x: scrollX, y: scrollY }));
+  const png = await page.screenshot({ path: join(directory, screenshot), fullPage, scale: "css" });
+  // PNG IHDR stores the rendered width and height as unsigned big-endian integers.
+  const screenshotArea = { ...origin, width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
+  const capturedAt = new Date().toISOString();
+  return { stage, url, screenshot, screenshotArea, capturedAt, priceLines, options, fees };
 }
 
 export async function scanDemo(browser: Browser, origin: string, scenario: Scenario, directory: string, onStage?: (snapshot: Snapshot) => Promise<void>) {
@@ -92,7 +99,10 @@ export async function scanDemo(browser: Browser, origin: string, scenario: Scena
   const targetUrl = base.origin + path + "product";
   const routes = new Set<string>(stages.map((stage) => path + stage));
   await mkdir(directory, { recursive: true });
-  const context = await browser.newContext({ serviceWorkers: "block", javaScriptEnabled: false });
+  const context = await browser.newContext({
+    serviceWorkers: "block", javaScriptEnabled: true, locale: "ko-KR", timezoneId: "Asia/Seoul",
+    viewport: { width: 1440, height: 1000 }, acceptDownloads: false,
+  });
   try {
     await context.route("**/*", async (route) => {
       const request = route.request();
@@ -115,6 +125,7 @@ export async function scanDemo(browser: Browser, origin: string, scenario: Scena
     const page = await context.newPage();
     page.setDefaultTimeout(10_000);
     const snapshots: Snapshot[] = [];
+    const interactions = [];
     for (const stage of stages) {
       let snapshot: Snapshot;
       try {
@@ -127,6 +138,7 @@ export async function scanDemo(browser: Browser, origin: string, scenario: Scena
           await page.getByRole("link", { name: "주문서 보기", exact: true }).click();
         }
         snapshot = await capture(page, stage, directory, page.locator('main[data-stage="' + stage + '"]'));
+        if (stage === "product") interactions.push(...await observePaidOptionChanges(page, page.locator('main[data-stage="product"]'), stage));
       } catch (error) {
         if (snapshots.length === 0) throw error;
         break;
@@ -135,10 +147,13 @@ export async function scanDemo(browser: Browser, origin: string, scenario: Scena
       await onStage?.(snapshot);
     }
     const report = {
+      comparisonVersion: scanComparisonVersion,
       scanStatus: snapshots.length === stages.length ? "COMPLETED" : "PARTIAL",
       scenario,
       targetUrl,
       snapshots,
+      interactions,
+      priceLedger: buildPriceLedger(snapshots),
       findings: detect(snapshots),
     } as const;
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");

@@ -1,4 +1,4 @@
-# DarkPattern Guard 개발 명세
+# 바로미 개발 명세
 
 ## 목표
 

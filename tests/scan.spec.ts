@@ -12,7 +12,17 @@ test("위험 데모에서 두 규칙과 증거를 기록한다", async ({ browse
   const report = await scanDemo(browser, origin, "risky", directory);
 
   expect(report.scanStatus).toBe("COMPLETED");
+  expect(report.priceLedger.firstPriceExposure.status).toBe("NOT_VERIFIED");
+  expect(report.priceLedger.stages.map(({ evidence, verification }) => [evidence.id, verification])).toEqual([
+    ["page:product", "SCREEN_ONLY"], ["page:cart", "SCREEN_ONLY"], ["page:checkout", "SCREEN_ONLY"],
+  ]);
+  expect(report.priceLedger.stages[2].fees.some((fee) => fee.won === 3000 && fee.required)).toBe(true);
+
   expect(report.snapshots.map(({ stage }) => stage)).toEqual(["product", "cart", "checkout"]);
+  expect(report.interactions).toEqual(expect.arrayContaining([
+    expect.objectContaining({ kind: "INITIAL_STATE", stage: "product" }),
+    expect.objectContaining({ kind: "PAID_OPTION_TOGGLE", controlLabel: expect.stringContaining("선물 포장") }),
+  ]));
   expect(report.findings.map(({ type, stage }) => [type, stage])).toEqual([
     ["PRESELECTION", "product"],
     ["DRIP_PRICING", "checkout"],
@@ -109,5 +119,28 @@ test("외부 대상 검사는 사설 주소나 혼합 DNS 응답을 거부한다
   expect(publicAddress(["8.8.8.8", "169.254.169.254"])).toBeNull();
   expect(publicAddress(["192.168.0.1"])).toBeNull();
   expect(publicAddress(["8.8.8.8"])).toBe("8.8.8.8");
+  expect(publicAddress(["2606:4700::1111"])).toBe("2606:4700::1111");
+  for (const address of ["::1", "::ffff:127.0.0.1", "64:ff9b::7f00:1", "fc00::1", "fe80::1", "2002:7f00:1::", "invalid"]) {
+    expect(publicAddress(["8.8.8.8", address])).toBeNull();
+  }
   expect(scanTarget("https://store.example.com/products/1")?.scenario).toBe("public");
+});
+
+test("재진단은 같은 항목의 변화만 비교하고 누락된 단계는 비교 불가로 표시한다", async () => {
+  const { compareScans } = await import("../src/scan-comparison");
+  const targetUrl = "https://shop.example.com/products/1";
+  const before = {
+    comparisonVersion: 1, scenario: "public", targetUrl,
+    snapshots: [{ stage: "product" as const, url: targetUrl }],
+    findings: [{ type: "PRESELECTION" as const, stage: "product" as const, ruleVersion: "3" as const, reason: "유료 포장" }],
+  };
+  const after = {
+    ...before,
+    findings: [{ ...before.findings[0], reason: "추가 보증" }],
+  };
+  expect(compareScans(before, after)).toMatchObject({
+    status: "COMPARED", repeated: [], added: after.findings, notObserved: before.findings,
+  });
+  expect(compareScans(before, { ...after, snapshots: [] }).status).toBe("UNAVAILABLE");
+  expect(compareScans(before, { ...after, comparisonVersion: undefined }).status).toBe("UNAVAILABLE");
 });
