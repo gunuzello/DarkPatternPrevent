@@ -156,7 +156,7 @@ test("동적 탐색은 주문서까지만 이동하고 가격 API의 비식별 �
       contentType: "application/json", body: JSON.stringify({ cart: { total: 21000 }, email: "private@example.com" }),
     });
     const html = path === "/product"
-      ? `<button onclick="fetch('/api/cart').then(()=>setTimeout(()=>location='/cart',100))">장바구니에 담기</button>`
+      ? `<select required><option value="">선택해 주세요</option><option value="regular">기본형</option></select><button onclick="fetch('/api/cart').then(()=>setTimeout(()=>location='/cart',100))">장바구니에 담기</button>`
       : path === "/cart"
         ? `<a href="/checkout">주문하기</a>`
         : `<h1>주문서</h1><button onclick="window.ordered=true">주문 확정</button>`;
@@ -168,9 +168,20 @@ test("동적 탐색은 주문서까지만 이동하고 가격 API의 비식별 �
   await page.waitForTimeout(50);
   expect(result.reached).toBe("checkout");
   expect(visited).toEqual(["product", "cart", "checkout"]);
+  expect(result.observations.map(({ action }) => action.kind)).toContain("REQUIRED_OPTION_SELECTION");
   expect(await page.evaluate(() => (window as typeof window & { ordered?: boolean }).ordered)).toBeUndefined();
   expect(result.network.flatMap(({ values }) => values)).toContainEqual({ path: "$.cart.total", won: 21000 });
   expect(JSON.stringify(result.network)).not.toContain("private@example.com");
+});
+
+test("동적 탐색은 행동 후보가 여러 개면 임의로 클릭하지 않고 이유를 기록한다", async ({ page }) => {
+  const { explorePurchaseJourney } = await import("../src/purchase-journey");
+  await page.setContent(`<button onclick="window.clicked=true">장바구니에 담기</button><button onclick="window.clicked=true">장바구니에 담기</button>`);
+  const result = await explorePurchaseJourney(page);
+  expect(result.blocker).toEqual({
+    stage: "product", code: "ACTION_AMBIGUOUS", action: "ADD_TO_CART", candidateCount: 2,
+  });
+  expect(await page.evaluate(() => (window as typeof window & { clicked?: boolean }).clicked)).toBeUndefined();
 });
 
 test("사이트 확인 메타 태그는 속성 순서와 따옴표가 달라도 검증하고 위조 값은 거부한다", async () => {

@@ -19,7 +19,7 @@ export type Snapshot = {
 export type InteractionEvidence = {
   id: string;
   stage: Stage;
-  kind: "INITIAL_STATE" | "PAID_OPTION_TOGGLE" | "NAVIGATION";
+  kind: "INITIAL_STATE" | "PAID_OPTION_TOGGLE" | "REQUIRED_OPTION_SELECTION" | "NAVIGATION";
   capturedAt: string;
   controlLabel?: string;
   beforeSelected?: boolean;

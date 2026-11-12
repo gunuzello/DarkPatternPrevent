@@ -5,7 +5,6 @@ import type { InteractionEvidence, NetworkPriceEvidence } from "./rules";
 const addCart = /^(?:장바구니(?:에\s*담기)?|카트에\s*담기|add\s+to\s+(?:cart|bag|basket))$/i;
 const openCart = /^(?:장바구니|카트|cart|bag|basket)(?:\s*보기)?$/i;
 const checkout = /^(?:주문서\s*보기|주문하기|구매하기|결제하기|checkout|proceed\s+to\s+checkout)$/i;
-const forbidden = /^(?:결제|주문|구매)\s*(?:완료|확정)|place\s+order|pay\s+now$/i;
 const priceKey = /(?:^|_)(?:total|subtotal|price|amount|shipping|delivery|fee|discount)(?:_|$)/i;
 
 function extractPrices(value: unknown, path = "$", depth = 0): { path: string; won: number }[] {
@@ -33,9 +32,50 @@ export async function priceEvidence(response: Response, stage: Stage): Promise<N
   return { id: `network:${stage}:${Date.now()}`, stage, url: response.url(), capturedAt: new Date().toISOString(), values };
 }
 
-async function uniqueAction(page: Page, pattern: RegExp): Promise<Locator | null> {
+async function actionCandidate(page: Page, pattern: RegExp) {
   const candidates = page.getByRole("button", { name: pattern }).or(page.getByRole("link", { name: pattern })).filter({ visible: true });
-  return await candidates.count() === 1 ? candidates.first() : null;
+  const count = await candidates.count();
+  return { action: count === 1 ? candidates.first() : null, count };
+}
+
+async function prepareRequiredOptions(page: Page, stage: Stage): Promise<InteractionEvidence[]> {
+  const evidence: InteractionEvidence[] = [];
+  const selects = page.locator("select[required]:visible");
+  for (let index = 0; index < Math.min(await selects.count(), 12); index++) {
+    const select = selects.nth(index);
+    if (await select.isDisabled() || await select.inputValue()) continue;
+    const option = await select.locator("option:not([disabled])").evaluateAll((items) => items
+      .map((item) => ({ value: (item as HTMLOptionElement).value, text: item.textContent?.trim() ?? "" }))
+      .find((item) => item.value && !/^(?:선택|choose|select)/i.test(item.text)) ?? null);
+    if (!option) continue;
+    const label = await select.evaluate((node: HTMLSelectElement) =>
+      Array.from(node.labels ?? [], (item) => item.innerText.trim()).join(" ") || node.name || "필수 선택");
+    await select.selectOption(option.value);
+    evidence.push({
+      id: `${stage}:required-select:${index}`, stage, kind: "REQUIRED_OPTION_SELECTION",
+      capturedAt: new Date().toISOString(), controlLabel: label, beforeSelected: false, afterSelected: true, outcome: "OBSERVED",
+    });
+  }
+  const radios = page.locator('input[type="radio"][required]:visible');
+  const handled = new Set<string>();
+  for (let index = 0; index < Math.min(await radios.count(), 20); index++) {
+    const radio = radios.nth(index);
+    const name = await radio.getAttribute("name") ?? `radio-${index}`;
+    if (handled.has(name)) continue;
+    handled.add(name);
+    const group = page.locator(`input[type="radio"][required][name=${JSON.stringify(name)}]`);
+    if (await group.evaluateAll((items) => items.some((item) => (item as HTMLInputElement).checked))) continue;
+    const choice = group.filter({ visible: true }).first();
+    if (!await choice.count() || await choice.isDisabled()) continue;
+    const label = await choice.evaluate((node: HTMLInputElement) =>
+      Array.from(node.labels ?? [], (item) => item.innerText.trim()).join(" ") || node.value || "필수 선택");
+    await choice.check();
+    evidence.push({
+      id: `${stage}:required-radio:${name}`, stage, kind: "REQUIRED_OPTION_SELECTION",
+      capturedAt: new Date().toISOString(), controlLabel: label, beforeSelected: false, afterSelected: true, outcome: "OBSERVED",
+    });
+  }
+  return evidence;
 }
 
 async function clickAndSettle(page: Page, action: Locator) {
@@ -54,6 +94,13 @@ export type JourneyObservation = {
   action: InteractionEvidence;
 };
 
+export type JourneyBlocker = {
+  stage: Stage;
+  code: "ACTION_NOT_FOUND" | "ACTION_AMBIGUOUS" | "ACTION_FAILED";
+  action: "ADD_TO_CART" | "OPEN_CHECKOUT";
+  candidateCount: number;
+};
+
 /** Explore only as far as the checkout form. It never clicks a final-order action. */
 export async function explorePurchaseJourney(page: Page, onStage?: (stage: Stage) => Promise<void>) {
   let stage: Stage = "product";
@@ -67,26 +114,39 @@ export async function explorePurchaseJourney(page: Page, onStage?: (stage: Stage
     void task.finally(() => pending.delete(task));
   });
   await onStage?.(stage);
+  observations.push(...(await prepareRequiredOptions(page, stage)).map((action) => ({ stage, url: page.url(), action })));
 
-  const add = await uniqueAction(page, addCart);
-  if (!add || await uniqueAction(page, forbidden)) return { observations, network, reached: stage };
+  const add = await actionCandidate(page, addCart);
+  if (!add.action) return {
+    observations, network, reached: stage,
+    blocker: { stage, code: add.count ? "ACTION_AMBIGUOUS" : "ACTION_NOT_FOUND", action: "ADD_TO_CART", candidateCount: add.count } satisfies JourneyBlocker,
+  };
   const before = page.url();
-  await clickAndSettle(page, add);
+  try { await clickAndSettle(page, add.action); } catch {
+    return { observations, network, reached: stage,
+      blocker: { stage, code: "ACTION_FAILED", action: "ADD_TO_CART", candidateCount: 1 } satisfies JourneyBlocker };
+  }
   observations.push({ stage, url: before, action: {
     id: "product:add-cart", stage, kind: "NAVIGATION", capturedAt: new Date().toISOString(), outcome: "OBSERVED",
   }});
 
-  let cartAction = await uniqueAction(page, openCart);
-  if (cartAction) {
-    await clickAndSettle(page, cartAction);
+  const cartAction = await actionCandidate(page, openCart);
+  if (cartAction.action) {
+    await clickAndSettle(page, cartAction.action);
   }
   stage = "cart";
   await onStage?.(stage);
 
-  const next = await uniqueAction(page, checkout);
-  if (!next || await uniqueAction(page, forbidden)) return { observations, network, reached: stage };
+  const next = await actionCandidate(page, checkout);
+  if (!next.action) return {
+    observations, network, reached: stage,
+    blocker: { stage, code: next.count ? "ACTION_AMBIGUOUS" : "ACTION_NOT_FOUND", action: "OPEN_CHECKOUT", candidateCount: next.count } satisfies JourneyBlocker,
+  };
   const cartUrl = page.url();
-  await clickAndSettle(page, next);
+  try { await clickAndSettle(page, next.action); } catch {
+    return { observations, network, reached: stage,
+      blocker: { stage, code: "ACTION_FAILED", action: "OPEN_CHECKOUT", candidateCount: 1 } satisfies JourneyBlocker };
+  }
   observations.push({ stage, url: cartUrl, action: {
     id: "cart:open-checkout", stage, kind: "NAVIGATION", capturedAt: new Date().toISOString(), outcome: "OBSERVED",
   }});

@@ -74,6 +74,7 @@ export async function scanDynamicPublicShop(
       comparisonVersion: scanComparisonVersion,
       scanStatus: journey.reached === "checkout" ? "COMPLETED" as const : "PARTIAL" as const,
       executionMode: "DYNAMIC" as const, scenario: "public" as const, targetUrl, snapshots, interactions,
+      explorationBlocker: journey.blocker ?? null,
       networkPriceEvidence: journey.network,
       priceLedger: buildPriceLedger(snapshots, journey.network), findings: detect(snapshots),
     };
