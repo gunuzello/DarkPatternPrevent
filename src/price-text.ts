@@ -1,5 +1,7 @@
 const amount = String.raw`([1-9]\d{0,2}(?:,\d{3})+|[1-9]\d*)\s*원`;
-const optionPrice = new RegExp(String.raw`^(?:유료\s*)?(?:선물\s*포장|리본\s*포장|추가\s*보증|보증\s*연장)\s*(?:\(\s*\+\s*${amount}\s*\)|\+\s*${amount})$`);
+// Option controls vary by storefront. Keep the amount shape strict, but allow
+// arbitrary option wording when the surcharge is explicitly marked with '+'.
+const optionPrice = new RegExp(String.raw`^.+?\s*(?:\(\s*\+\s*${amount}\s*\)|\+\s*${amount})$`);
 const mandatoryFee = new RegExp(String.raw`^필수\s*(처리비|포장비|서비스비|수수료)\s*[:：]?\s*${amount}$`);
 const normalize = (value: string) => value.normalize("NFKC").replace(/\s+/g, " ").trim();
 

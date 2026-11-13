@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { scanDemo } from "../src/scan";
+import { paidOptionFromText } from "../src/price-text";
 
 const origin = "http://127.0.0.1:3100";
 
@@ -251,6 +252,12 @@ test("가격 원장은 화면과 API 금액의 일치·불일치를 값별로 �
     expect.objectContaining({ path: "$.total", matchedScreen: true }),
     expect.objectContaining({ path: "$.hiddenFee", matchedScreen: false }),
   ]);
+});
+
+test("일반적인 상품 옵션 문구의 명시적 추가금을 유료 옵션으로 읽는다", async () => {
+  expect(paidOptionFromText("색상 블랙 (+1,000원)")).toBe(1000);
+  expect(paidOptionFromText("각인 서비스 +2,500원")).toBe(2500);
+  expect(paidOptionFromText("무료 배송")).toBeNull();
 });
 
 test("목록에서 이미 같은 필수 비용을 공개했다면 뒤늦은 가격 공개로 오탐하지 않는다", async () => {
