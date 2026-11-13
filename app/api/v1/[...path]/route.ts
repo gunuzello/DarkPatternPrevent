@@ -204,6 +204,23 @@ export async function GET(request: NextRequest, context: Context) {
   const [resource, id, action, ...extra] = route;
   if (!id || extra.length) return notFound();
 
+  if (resource === "shops" && action === "scans" && route.length === 3) {
+    const shop = await db().shop.findFirst({ where: { id, ownerHash }, select: { id: true } });
+    if (!shop) return notFound();
+    const scans = await db().scan.findMany({
+      where: { shopId: shop.id }, orderBy: { createdAt: "desc" }, take: 50,
+      include: { findings: { select: { status: true } } },
+    });
+    return Response.json(scans.map((scan) => ({
+      scanId: scan.id, status: scan.status, executionMode: scan.executionMode,
+      viewport: scan.viewport, purchasePath: scan.purchasePath, createdAt: scan.createdAt,
+      durationMs: scan.durationMs,
+      summary: {
+        suspected: scan.findings.filter((finding) => finding.status === "SUSPECTED").length,
+        reviewNeeded: scan.findings.filter((finding) => finding.status === "REVIEW_NEEDED").length,
+      },
+    })));
+  }
   if (resource === "shops" && !action) {
     const shop = await db().shop.findFirst({
       where: { id, ownerHash }, select: { id: true, url: true, consentAt: true, verifiedAt: true },

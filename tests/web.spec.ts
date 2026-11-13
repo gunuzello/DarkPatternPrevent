@@ -51,6 +51,9 @@ test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async
   const status = await (await request.get(api + "scans/" + scan.scanId)).json();
   expect(status.status).toBe("CANCELLED");
   expect(status.summary.notTested).toBe(3);
+  expect((await request.get(api + "shops/" + shop.shopId + "/scans")).json()).resolves.toEqual([
+    expect.objectContaining({ scanId: scan.scanId, status: "CANCELLED", purchasePath: "CART" }),
+  ]);
   expect((await request.delete(api + "shops/" + shop.shopId)).status()).toBe(200);
   expect((await request.get(api + "shops/" + shop.shopId)).status()).toBe(404);
 });
