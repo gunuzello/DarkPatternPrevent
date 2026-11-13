@@ -71,7 +71,10 @@ export async function POST(request: NextRequest, context: Context) {
         dnsRecord: `${verificationDnsPrefix}.${new URL(shop.url).hostname} TXT ${verification.token}`,
       } : null,
     }, { status: 201 });
-    if (!session) response.cookies.set(cookie, token, { httpOnly: true, sameSite: "strict", path: "/", secure: request.nextUrl.protocol === "https:" });
+    if (!session) response.cookies.set(cookie, token, {
+      httpOnly: true, sameSite: "strict", path: "/", maxAge: 24 * 60 * 60,
+      secure: request.nextUrl.protocol === "https:",
+    });
     return response;
   }
 
