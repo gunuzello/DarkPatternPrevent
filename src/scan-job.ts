@@ -28,7 +28,9 @@ export async function runScanJob(id: string, targetUrl: string) {
     const proxy = requested.executionMode === "DYNAMIC"
       ? await startSafeBrowserProxy().catch(async (error) => { await browser.close(); throw error; })
       : null;
-    const timeout = setTimeout(() => void browser.close().catch(() => {}), 280_000);
+    const configuredTimeout = Number(process.env.SCAN_TIMEOUT_MS ?? 280_000);
+    const timeoutMs = Number.isFinite(configuredTimeout) ? Math.min(Math.max(configuredTimeout, 30_000), 300_000) : 280_000;
+    const timeout = setTimeout(() => void browser.close().catch(() => {}), timeoutMs);
     try {
       const directory = evidenceDirectory(id);
       let progress = 0;
