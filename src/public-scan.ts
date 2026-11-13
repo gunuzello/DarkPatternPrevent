@@ -8,6 +8,7 @@ import { capture } from "./scan";
 import { detect, type Snapshot } from "./rules";
 import { publicShopUrl } from "./targets";
 import { feeMentionsFromText } from "./price-text";
+import { startSafeBrowserProxy } from "./safe-browser-proxy";
 
 export const productPath = /\/(?:products?\/(?!(?:list|search)\.(?:html|php)(?:$|\/)|category\/)[^/]+|goods\/[^/]+|items?\/[^/]+|shopdetail(?:\/[^/]+|\.html)|catalogue\/[^/]+_\d+\/index\.html)/i;
 const addToCart = /^(?:장바구니(?:에 담기)?|add to (?:cart|bag|basket))$/i;
@@ -113,8 +114,9 @@ export async function scanPublicShop(
         // buttons rather than links. Use a same-origin rendered pass as a generic
         // fallback; this is still a public, non-interactive inspection and does
         // not submit forms or enter a purchase flow.
+        const renderedProxy = await startSafeBrowserProxy();
         const rendered = await browser.newContext({
-          javaScriptEnabled: true, serviceWorkers: "block", acceptDownloads: false,
+          proxy: { server: renderedProxy.server }, javaScriptEnabled: true, serviceWorkers: "block", acceptDownloads: false,
           viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 },
           isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1,
         });
@@ -148,7 +150,7 @@ export async function scanPublicShop(
             return report;
           }
         } catch { /* fall through to an explicit partial result */ }
-        finally { await rendered.close(); }
+        finally { await rendered.close(); await renderedProxy.close(); }
       }
       if (!found) return partial("상품 상세 화면을 찾지 못했습니다. 상품 상세 URL을 직접 입력해 주세요.");
     }
