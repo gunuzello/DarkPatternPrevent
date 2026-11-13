@@ -211,6 +211,13 @@ test("동적 탐색은 행동 후보가 여러 개면 임의로 클릭하지 않
   expect(await page.evaluate(() => (window as typeof window & { clicked?: boolean }).clicked)).toBeUndefined();
 });
 
+test("동적 탐색은 로그인 화면을 별도 미검사 사유로 기록한다", async ({ page }) => {
+  const { explorePurchaseJourney } = await import("../src/purchase-journey");
+  await page.setContent("<main><h1>로그인</h1><p>구매하려면 로그인해 주세요.</p></main>");
+  const result = await explorePurchaseJourney(page);
+  expect(result.blocker).toMatchObject({ code: "LOGIN_REQUIRED", action: "ADD_TO_CART", stage: "product" });
+});
+
 test("바로구매 경로는 장바구니를 거치지 않고 주문서 직전에서 멈춘다", async ({ page }) => {
   const { explorePurchaseJourney } = await import("../src/purchase-journey");
   await page.route("https://direct.example/**", async (route) => {
