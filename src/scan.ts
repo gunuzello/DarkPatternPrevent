@@ -7,6 +7,7 @@ import { stages, type Scenario, type Stage } from "./demo";
 import { isVariantOptionLabel, mandatoryFeeFromText, paidOptionFromText } from "./price-text";
 import { detect, type Snapshot } from "./rules";
 import { observePaidOptionChanges } from "./journey-evidence";
+import { collectReviewCandidates } from "./review-candidates";
 
 export async function capture(page: Page, stage: Stage, directory: string, main: Locator, url = page.url(), fullPage = true): Promise<Snapshot> {
   await main.waitFor({ state: "visible" });
@@ -187,6 +188,7 @@ export async function scanDemo(
       snapshots,
       interactions,
       priceLedger: buildPriceLedger(snapshots),
+      reviewCandidates: collectReviewCandidates(snapshots),
       findings: detect(snapshots),
     } as const;
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");

@@ -9,6 +9,7 @@ import { detect, type Snapshot } from "./rules";
 import { publicShopUrl } from "./targets";
 import { feeMentionsFromText } from "./price-text";
 import { startSafeBrowserProxy } from "./safe-browser-proxy";
+import { collectReviewCandidates } from "./review-candidates";
 
 export const productPath = /\/(?:products?\/(?!(?:list|search)\.(?:html|php)(?:$|\/)|category\/)[^/]+|goods\/[^/]+|items?\/[^/]+|shopdetail(?:\/[^/]+|\.html)|catalogue\/[^/]+_\d+\/index\.html)/i;
 const addToCart = /^(?:장바구니(?:에 담기)?|add to (?:cart|bag|basket))$/i;
@@ -55,7 +56,7 @@ export async function scanPublicShop(
       const report = {
         comparisonVersion: scanComparisonVersion,
         scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport, purchasePath,
-        scenario: "public" as const, targetUrl, snapshots: [], priceLedger: buildPriceLedger([]), findings: [],
+        scenario: "public" as const, targetUrl, snapshots: [], priceLedger: buildPriceLedger([]), findings: [], reviewCandidates: [],
         collectionFailure: reason,
       };
       await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
@@ -144,7 +145,7 @@ export async function scanPublicShop(
               comparisonVersion: scanComparisonVersion,
               scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport, purchasePath,
               scenario: "public" as const, targetUrl, snapshots: [product],
-              priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]), collectionFailure: null,
+              priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]), reviewCandidates: collectReviewCandidates([product]), collectionFailure: null,
             };
             await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
             return report;
@@ -165,7 +166,7 @@ export async function scanPublicShop(
       comparisonVersion: scanComparisonVersion,
       scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport, purchasePath,
       scenario: "public" as const, targetUrl,
-      snapshots: [product], priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]), collectionFailure: null,
+      snapshots: [product], priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]), reviewCandidates: collectReviewCandidates([product]), collectionFailure: null,
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
     return report;

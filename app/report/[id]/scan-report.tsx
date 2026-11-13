@@ -26,6 +26,7 @@ type Report = {
     action: "ADD_TO_CART" | "OPEN_CHECKOUT" | "DIRECT_BUY"; candidateCount: number;
   } | null;
   findings: { id: number; type: keyof typeof legalRules; stage: Stage; reason: string }[];
+  reviewCandidates?: { id: string; kind: string; stage: Stage; text: string; reason: string; evidenceIds: string[] }[];
 };
 
 export function ScanReport({ id }: { id: string }) {
@@ -69,6 +70,7 @@ export function ScanReport({ id }: { id: string }) {
       {report.findings.length ? <ul>{report.findings.map((finding) => (
         <li key={finding.id}><Link href={"/report/" + id + "/" + finding.id}>{legalRules[finding.type].title}</Link> · {stageLabels[finding.stage]}</li>
       ))}</ul> : <p>{report.executionMode === "STATIC" ? "검사한 공개 화면에서 지원하는 규칙의 위험 신호를 찾지 못했습니다. 구매 행동 이후 단계는 추가 검사가 필요합니다." : "검사한 범위에서 위험 신호가 발견되지 않았습니다."}</p>}
+      {report.reviewCandidates?.length ? <section><h2>추가 검토 후보</h2><p>규칙만으로 의미를 확정하지 않은 문구입니다. AI 또는 운영자 검토 대상으로만 전달하며 자동 판정에 포함하지 않습니다.</p><ul>{report.reviewCandidates.map((candidate) => <li key={candidate.id}>{candidate.text} · {candidate.reason} · {candidate.evidenceIds.join(", ")}</li>)}</ul></section> : null}
       {report.comparison && (
         <section>
           <h2>재진단 비교</h2>

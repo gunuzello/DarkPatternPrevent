@@ -9,6 +9,7 @@ import { capture } from "./scan";
 import { scanComparisonVersion } from "./scan-comparison";
 import { detect, type InteractionEvidence, type Snapshot } from "./rules";
 import { feeMentionsFromText } from "./price-text";
+import { collectReviewCandidates } from "./review-candidates";
 
 const rootHost = (hostname: string) => hostname.replace(/^www\./, "");
 
@@ -122,6 +123,7 @@ export async function scanDynamicPublicShop(
       explorationBlocker: journey.blocker ?? null,
       networkPriceEvidence: journey.network,
       priceLedger: buildPriceLedger(snapshots, journey.network, firstPriceExposure),
+      reviewCandidates: collectReviewCandidates(snapshots),
       findings: detect(snapshots, firstPriceExposure?.feeMentions),
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");

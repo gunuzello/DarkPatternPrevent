@@ -269,6 +269,15 @@ test("긴급성·희소성 문구가 함께 보이면 사실 판단이 아닌 �
   expect(detect([product]).map(({ type }) => type)).toEqual(["URGENCY_SCARCITY"]);
 });
 
+test("모호한 비용 문구는 자동 판정 대신 제한된 검토 후보로 보존한다", async () => {
+  const { collectReviewCandidates } = await import("../src/review-candidates");
+  const candidates = collectReviewCandidates([{
+    evidenceId: "evidence:product", stage: "product", url: "https://shop.example.com/", screenshot: "product.png",
+    priceLines: ["배송비 3,000원"], textLines: ["배송비 3,000원"], options: [], fees: [],
+  }]);
+  expect(candidates).toEqual([expect.objectContaining({ kind: "FEE_SEMANTICS", evidenceIds: ["evidence:product"] })]);
+});
+
 test("목록에서 이미 같은 필수 비용을 공개했다면 뒤늦은 가격 공개로 오탐하지 않는다", async () => {
   const { detect } = await import("../src/rules");
   const bounds = { x: 0, y: 0, width: 100, height: 20 };
