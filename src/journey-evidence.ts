@@ -14,13 +14,15 @@ async function visibleTotal(main: Locator) {
 }
 
 /**
- * Reversibly toggles already-selected, visibly priced options. This never submits a
- * form and restores the original state before the purchase journey continues.
+ * Reversibly toggles already-selected, visibly priced checkbox options. Radio
+ * groups are intentionally left untouched because a selected radio cannot be
+ * safely unchecked without choosing a different value; initial radio state is
+ * captured by the preselection detector instead.
  */
 export async function observePaidOptionChanges(page: Page, main: Locator, stage: Stage): Promise<InteractionEvidence[]> {
   // Keep a stable locator while toggling. A `:checked` locator would stop
   // referring to the control immediately after it is unchecked.
-  const controls = main.locator('input:is([type="checkbox"], [type="radio"])');
+  const controls = main.locator('input[type="checkbox"]');
   const count = Math.min(await controls.count(), 8);
   const evidence: InteractionEvidence[] = [{
     id: `${stage}:initial`, stage, kind: "INITIAL_STATE", capturedAt: new Date().toISOString(), outcome: "OBSERVED",

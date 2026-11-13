@@ -15,12 +15,21 @@ type CaseResult = {
   actual: ExpectedFinding[];
   exactMatch: boolean;
   coveredStages: Stage[];
+  repeatConsistent: boolean;
   durationMs: number;
 };
 
 const rules = ["PRESELECTION", "DRIP_PRICING"] as const;
 const rate = (numerator: number, denominator: number) => denominator ? numerator / denominator : null;
 const keys = (findings: ExpectedFinding[]) => findings.map(({ type, stage }) => type + ":" + stage).sort();
+const stableObservation = (scan: Awaited<ReturnType<typeof scanDemo>>) => JSON.stringify({
+  stages: scan.snapshots.map(({ stage, url, priceLines, options, fees }) => ({
+    stage, url, priceLines,
+    options: options.map(({ label, won, selected }) => ({ label, won, selected })),
+    fees: fees.map(({ id, label, won, required }) => ({ id, label, won, required })),
+  })),
+  findings: scan.findings.map(({ type, stage, reason }) => ({ type, stage, reason })),
+});
 
 async function main() {
   const validateText = process.argv.includes("--text-validation");
@@ -56,12 +65,14 @@ async function main() {
       for (const testCase of cases) {
         fixture = testCase;
         const start = performance.now();
-        const scan = await scanDemo(browser, origin, "clean", join(directory, testCase.id));
+        const scan = await scanDemo(browser, origin, "clean", join(directory, testCase.id, "run-1"));
+        const repeat = await scanDemo(browser, origin, "clean", join(directory, testCase.id, "run-2"));
         const actual = scan.findings.map(({ type, stage }) => ({ type, stage }));
         results.push({
           id: testCase.id, title: testCase.title, expected: testCase.expected, actual,
           exactMatch: JSON.stringify(keys(actual)) === JSON.stringify(keys(testCase.expected)),
           coveredStages: scan.snapshots.map(({ stage }) => stage),
+          repeatConsistent: stableObservation(scan) === stableObservation(repeat),
           durationMs: Math.round(performance.now() - start),
         });
       }
@@ -79,16 +90,18 @@ async function main() {
         cases: results.length, exactMatches: results.filter(({ exactMatch }) => exactMatch).length,
         visited, totalStages, reachRate: rate(visited, totalStages),
         untestedRate: rate(totalStages - visited, totalStages),
+        repeatableCases: results.filter(({ repeatConsistent }) => repeatConsistent).length,
+        repeatabilityRate: rate(results.filter(({ repeatConsistent }) => repeatConsistent).length, results.length),
         meanDurationMs: Math.round(results.reduce((total, item) => total + item.durationMs, 0) / results.length),
         metrics,
       };
       const output = join(directory, "summary.json");
       await writeFile(output, JSON.stringify({ summary, cases: results }, null, 2) + "\n");
       console.table(metrics);
-      console.log(`정확 일치 ${summary.exactMatches}/${summary.cases} · 단계 도달 ${visited}/${totalStages} · 평균 ${summary.meanDurationMs}ms`);
+      console.log(`정확 일치 ${summary.exactMatches}/${summary.cases} · 단계 도달 ${visited}/${totalStages} · 반복 일치 ${summary.repeatableCases}/${summary.cases} · 평균 ${summary.meanDurationMs}ms`);
       for (const item of results.filter(({ exactMatch }) => !exactMatch)) console.log(item.id, item.title);
       console.log(output);
-      if (summary.exactMatches !== summary.cases || visited !== totalStages) process.exitCode = 1;
+      if (summary.exactMatches !== summary.cases || visited !== totalStages || summary.repeatableCases !== summary.cases) process.exitCode = 1;
     } finally {
       await browser.close();
     }
