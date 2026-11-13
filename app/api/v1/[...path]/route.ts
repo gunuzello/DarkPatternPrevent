@@ -184,10 +184,21 @@ export async function POST(request: NextRequest, context: Context) {
 }
 
 export async function GET(request: NextRequest, context: Context) {
+  const route = (await context.params).path;
+  if (route.join("/") === "health") {
+    try {
+      await db().$queryRaw`SELECT 1`;
+      return Response.json({ status: "ok", service: "baromi", version: process.env.APP_VERSION ?? "0.1.0" }, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    } catch {
+      return error("데이터베이스를 사용할 수 없습니다.", 503);
+    }
+  }
   const session = request.cookies.get(cookie)?.value;
   if (!session) return notFound();
   const ownerHash = hash(session);
-  const [resource, id, action, ...extra] = (await context.params).path;
+  const [resource, id, action, ...extra] = route;
   if (!id || extra.length) return notFound();
 
   if (resource === "shops" && !action) {
