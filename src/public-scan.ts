@@ -83,9 +83,25 @@ export async function scanPublicShop(
           href: anchor.getAttribute("href") ?? "",
           context: (anchor.closest("article, li, [class*='product' i], [class*='item' i]") ?? anchor).textContent?.replace(/\s+/g, " ").trim().slice(0, 500) ?? "",
         })));
+      const structuredLinks = await page.locator('script[type="application/ld+json"]').evaluateAll((scripts) => scripts.flatMap((script) => {
+        try {
+          const value = JSON.parse(script.textContent ?? "null") as unknown;
+          const urls: string[] = [];
+          const visit = (item: unknown, depth = 0) => {
+            if (depth > 5 || item === null || typeof item !== "object") return;
+            if (Array.isArray(item)) { item.slice(0, 50).forEach((entry) => visit(entry, depth + 1)); return; }
+            for (const [key, child] of Object.entries(item as Record<string, unknown>)) {
+              if (key === "url" && typeof child === "string") urls.push(child);
+              else visit(child, depth + 1);
+            }
+          };
+          visit(value);
+          return urls.slice(0, 20).map((href) => ({ href, context: "구조화된 상품 데이터" }));
+        } catch { return []; }
+      }));
       const candidates = new Set<string>();
       const contexts = new Map<string, string>();
-      for (const { href, context } of links) {
+      for (const { href, context } of [...links, ...structuredLinks]) {
         let url: URL | null;
         try { url = publicShopUrl(new URL(href, document.url).href); } catch { continue; }
         if (!url || url.origin !== origin || url.href === document.url ||
