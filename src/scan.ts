@@ -87,7 +87,8 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
   // normalized visible price lines as evidence, while leaving rule decisions to
   // structured fields and the price ledger.
   const bodyText = await main.innerText().catch(() => "");
-  const textPrices = bodyText.split(/\n+/).map((line) => line.trim()).filter((line) =>
+  const textLines = bodyText.split(/\n+/).map((line) => line.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 300);
+  const textPrices = textLines.filter((line) =>
     /(?:[₩$£€]\s*\d[\d,.]*|\d[\d,.]*\s*원)/.test(line),
   ).slice(0, 100);
   const priceLines = [...new Set([...displayedPrices, ...textPrices, ...textFees.map(({ label }) => label)])];
@@ -106,7 +107,7 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
   // PNG IHDR stores the rendered width and height as unsigned big-endian integers.
   const screenshotArea = { ...origin, width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
   const capturedAt = new Date().toISOString();
-  return { stage, url, screenshot, screenshotArea, capturedAt, priceLines, options, fees };
+  return { stage, url, screenshot, screenshotArea, capturedAt, priceLines, textLines, options, fees };
 }
 
 export async function scanDemo(

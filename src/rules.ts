@@ -1,5 +1,6 @@
 import { detectPreselection } from "./detectors/preselection";
 import { detectDripPricing } from "./detectors/drip-pricing";
+import { detectUrgencyScarcity } from "./detectors/urgency-scarcity";
 import type { Stage } from "./demo";
 
 type Bounds = { x: number; y: number; width: number; height: number };
@@ -14,6 +15,8 @@ export type Snapshot = {
   capturedAt?: string;
   screenshotArea?: Bounds;
   priceLines: string[];
+  /** Normalized visible text retained for text-only risk signals. */
+  textLines?: string[];
   options: Option[];
   fees: Fee[];
 };
@@ -39,7 +42,7 @@ export type NetworkPriceEvidence = {
 };
 export type PriorFeeDisclosure = { key: string; won: number };
 export type Finding = {
-  type: "PRESELECTION" | "DRIP_PRICING";
+  type: "PRESELECTION" | "DRIP_PRICING" | "URGENCY_SCARCITY";
   status: "SUSPECTED";
   ruleVersion: "1" | "2" | "3";
   stage: Stage;
@@ -50,5 +53,9 @@ export type Finding = {
 
 export function detect([product, ...later]: Snapshot[], priorDisclosures: PriorFeeDisclosure[] = []): Finding[] {
   if (!product) return [];
-  return [...detectPreselection(product), ...detectDripPricing(product, later, priorDisclosures)];
+  return [
+    ...detectPreselection(product),
+    ...detectDripPricing(product, later, priorDisclosures),
+    ...detectUrgencyScarcity(product),
+  ];
 }

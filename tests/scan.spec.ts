@@ -260,6 +260,15 @@ test("일반적인 상품 옵션 문구의 명시적 추가금을 유료 옵션�
   expect(paidOptionFromText("무료 배송")).toBeNull();
 });
 
+test("긴급성·희소성 문구가 함께 보이면 사실 판단이 아닌 검토 신호를 남긴다", async () => {
+  const { detect } = await import("../src/rules");
+  const product = {
+    stage: "product" as const, url: "https://shop.example.com/", screenshot: "product.png",
+    priceLines: [], textLines: ["선착순 마감 임박", "마지막 재고 2개"], options: [], fees: [],
+  };
+  expect(detect([product]).map(({ type }) => type)).toEqual(["URGENCY_SCARCITY"]);
+});
+
 test("목록에서 이미 같은 필수 비용을 공개했다면 뒤늦은 가격 공개로 오탐하지 않는다", async () => {
   const { detect } = await import("../src/rules");
   const bounds = { x: 0, y: 0, width: 100, height: 20 };

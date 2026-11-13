@@ -27,6 +27,12 @@
 | MEGA SALE | `3f8e8da9-a77b-472e-abde-8fe3fd4f4318` (기존 HTML-only) | STATIC | PARTIAL | BLOCKED | BLOCKED | 0 |
 | MEGA SALE | 재실행 후 확인 | STATIC | PARTIAL | COVERED | BLOCKED | 0 |
 
+최신 범용 렌더링·텍스트 신호 규칙 재검증 결과:
+
+- VERO 최신 진단 (`f9ef9321-7182-44ee-bfd5-839dbc7d1935`): `PARTIAL`, 상품 `COVERED`, 발견 0건
+- MEGA SALE 최신 진단 (`1f338303-9564-4aba-807c-1f3ac9d5144c`): `PARTIAL`, 상품 `COVERED`, `URGENCY_SCARCITY` 1건
+- MEGA SALE의 근거는 `[선착순 타임특가 마감임박 04:59]`와 `현재 실시간 동시 접속자: 4,812명`이며, 사실 여부를 단정하지 않고 운영자 검토 신호로 표시한다.
+
 `PARTIAL`은 실패가 아니라 공개 URL만으로는 장바구니·주문서를 검사하지 않았다는 범위 표시다. 실제 주문 확정·결제는 실행하지 않는다.
 
 ## 동적 검사 권한
