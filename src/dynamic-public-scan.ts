@@ -37,7 +37,10 @@ export async function scanDynamicPublicShop(
       let url: URL;
       try { url = new URL(request.url()); } catch { await route.abort(); return; }
       if (["data:", "blob:"].includes(url.protocol)) { await route.continue(); return; }
-      if (url.protocol !== "https:" || request.isNavigationRequest() && rootHost(url.hostname) !== rootHost(target.hostname)) {
+      // Keep the dynamic session inside the verified storefront origin. A
+      // third-party asset is not evidence-critical and must not expand the
+      // requested scan's network boundary or receive session state.
+      if (url.protocol !== "https:" || rootHost(url.hostname) !== rootHost(target.hostname)) {
         await route.abort();
         return;
       }
