@@ -115,7 +115,8 @@ export async function scanPublicShop(
         // buttons rather than links. Use a same-origin rendered pass as a generic
         // fallback; this is still a public, non-interactive inspection and does
         // not submit forms or enter a purchase flow.
-        const renderedProxy = await startSafeBrowserProxy();
+        const renderedProxy = await startSafeBrowserProxy().catch(() => null);
+        if (!renderedProxy) return partial("동적 화면 폴백을 위한 안전 연결을 시작하지 못했습니다. 공개 HTML 또는 상품 상세 URL을 확인해 주세요.");
         const rendered = await browser.newContext({
           proxy: { server: renderedProxy.server }, javaScriptEnabled: true, serviceWorkers: "block", acceptDownloads: false,
           viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 },
