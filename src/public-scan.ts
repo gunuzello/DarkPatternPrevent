@@ -33,6 +33,7 @@ export async function scanPublicShop(
   onStage: (snapshot: Snapshot) => Promise<void>,
   load = fetchPublicHtml,
   viewport: "DESKTOP" | "MOBILE" = "DESKTOP",
+  purchasePath: "CART" | "DIRECT" = "CART",
 ) {
   const mobile = viewport === "MOBILE";
   const context = await browser.newContext({
@@ -100,7 +101,7 @@ export async function scanPublicShop(
     await onStage(product);
     const report = {
       comparisonVersion: scanComparisonVersion,
-      scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport,
+      scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport, purchasePath,
       scenario: "public" as const, targetUrl,
       snapshots: [product], priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]),
     };
