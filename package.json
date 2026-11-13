@@ -14,6 +14,7 @@
     "test": "playwright test",
     "postinstall": "prisma generate",
     "worker": "tsx scripts/worker.ts",
+    "cleanup:retention": "tsx scripts/cleanup-retention.ts",
     "predb:setup": "tsx scripts/prepare-db.ts",
     "evaluate": "tsx scripts/evaluate.ts"
   },
