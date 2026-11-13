@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Browser } from "playwright";
 import { buildPriceLedger, type FirstPriceExposure } from "./price-ledger";
-import { isProductPage, productPath } from "./public-scan";
+import { isProductPage } from "./public-scan";
 import { explorePurchaseJourney } from "./purchase-journey";
 import { observePaidOptionChanges } from "./journey-evidence";
 import { capture } from "./scan";
@@ -75,7 +75,9 @@ export async function scanDynamicPublicShop(
       for (const { href, context } of links) {
         let candidate: URL;
         try { candidate = new URL(href, page.url()); } catch { continue; }
-        if (candidate.protocol !== "https:" || rootHost(candidate.hostname) !== rootHost(target.hostname) || !productPath.test(candidate.pathname)) continue;
+        if (candidate.protocol !== "https:" || rootHost(candidate.hostname) !== rootHost(target.hostname) ||
+            /(?:^|\/)(?:search|search\.html)(?:\/|$)/i.test(candidate.pathname) ||
+            [...candidate.searchParams.keys()].some((key) => /^(?:q|query|keyword|search|action|add-to-cart|redirect|return_url)$/i.test(key))) continue;
         candidates.add(candidate.href);
         if (!contexts.has(candidate.href)) contexts.set(candidate.href, context);
         if (candidates.size === 3) break;
