@@ -101,10 +101,17 @@ export type JourneyObservation = {
 
 export type JourneyBlocker = {
   stage: Stage;
-  code: "ACTION_NOT_FOUND" | "ACTION_AMBIGUOUS" | "ACTION_FAILED";
+  code: "ACTION_NOT_FOUND" | "ACTION_AMBIGUOUS" | "ACTION_FAILED" | "LOGIN_REQUIRED";
   action: "ADD_TO_CART" | "OPEN_CHECKOUT" | "DIRECT_BUY";
   candidateCount: number;
 };
+
+async function missingActionBlocker(page: Page, count: number, action: JourneyBlocker["action"]): Promise<JourneyBlocker> {
+  const text = await page.locator("body").innerText().catch(() => "");
+  const login = /(?:로그인|회원가입|sign\s*in|log\s*in|account\s+required|please\s+sign)/i.test(text) &&
+    !/(?:로그아웃|sign\s*out|log\s*out)/i.test(text);
+  return { stage: action === "OPEN_CHECKOUT" ? "cart" : "product", code: login ? "LOGIN_REQUIRED" : count ? "ACTION_AMBIGUOUS" : "ACTION_NOT_FOUND", action, candidateCount: count };
+}
 
 /** Explore only as far as the checkout form. It never clicks a final-order action. */
 export async function explorePurchaseJourney(
@@ -127,7 +134,7 @@ export async function explorePurchaseJourney(
     const direct = await actionCandidate(page, directBuy);
     if (!direct.action) return {
       observations, network, reached: stage,
-      blocker: { stage, code: direct.count ? "ACTION_AMBIGUOUS" : "ACTION_NOT_FOUND", action: "DIRECT_BUY", candidateCount: direct.count } satisfies JourneyBlocker,
+    blocker: await missingActionBlocker(page, direct.count, "DIRECT_BUY"),
     };
     const before = page.url();
     try { await clickAndSettle(page, direct.action); } catch {
@@ -146,7 +153,7 @@ export async function explorePurchaseJourney(
   const add = await actionCandidate(page, addCart);
   if (!add.action) return {
     observations, network, reached: stage,
-    blocker: { stage, code: add.count ? "ACTION_AMBIGUOUS" : "ACTION_NOT_FOUND", action: "ADD_TO_CART", candidateCount: add.count } satisfies JourneyBlocker,
+    blocker: await missingActionBlocker(page, add.count, "ADD_TO_CART"),
   };
   const before = page.url();
   try { await clickAndSettle(page, add.action); } catch {
@@ -167,7 +174,7 @@ export async function explorePurchaseJourney(
   const next = await actionCandidate(page, checkout);
   if (!next.action) return {
     observations, network, reached: stage,
-    blocker: { stage, code: next.count ? "ACTION_AMBIGUOUS" : "ACTION_NOT_FOUND", action: "OPEN_CHECKOUT", candidateCount: next.count } satisfies JourneyBlocker,
+    blocker: await missingActionBlocker(page, next.count, "OPEN_CHECKOUT"),
   };
   const cartUrl = page.url();
   try { await clickAndSettle(page, next.action); } catch {
