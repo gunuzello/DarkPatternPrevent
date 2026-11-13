@@ -25,9 +25,14 @@ export async function isProductPage(page: Page, url: string) {
     const actions = page.getByRole("button", { name }).or(page.getByRole("link", { name }));
     if (await actions.count() === 1) return true;
   }
-  if (!productPath.test(new URL(url).pathname) || await page.getByRole("heading", { level: 1 }).count() !== 1) return false;
+  // Do not require a platform-specific URL shape. Many storefronts use opaque
+  // slugs, query-backed routes, or client-side history URLs for product pages.
+  // The fallback therefore relies on the page's semantic signals instead.
+  if (await page.getByRole("heading", { level: 1 }).count() !== 1) return false;
   const text = await page.locator("body").innerText();
-  return /(?:[₩$£€]\s*\d|\d[\d,.]*\s*원)/.test(text);
+  return /(?:[₩$£€]\s*\d|\d[\d,.]*\s*원)/.test(text) &&
+    (await page.getByRole("button", { name: /(?:구매|장바구니|담기|buy|cart|add)/i }).count() > 0 ||
+      await page.getByRole("link", { name: /(?:구매|장바구니|담기|buy|cart|add)/i }).count() > 0);
 }
 
 export async function scanPublicShop(
@@ -83,7 +88,9 @@ export async function scanPublicShop(
       for (const { href, context } of links) {
         let url: URL | null;
         try { url = publicShopUrl(new URL(href, document.url).href); } catch { continue; }
-        if (!url || url.origin !== origin || url.href === document.url || !productPath.test(url.pathname) ||
+        if (!url || url.origin !== origin || url.href === document.url ||
+            /(?:^|\/)(?:search|search\.html)(?:\/|$)/i.test(url.pathname) ||
+            [...url.searchParams.keys()].some((key) => /^(?:q|query|keyword|search)$/i.test(key)) ||
             [...url.searchParams.keys()].some((key) => /^(?:action|add-to-cart|redirect|return_url)$/i.test(key))) continue;
         candidates.add(url.href);
         if (!contexts.has(url.href)) contexts.set(url.href, context);
