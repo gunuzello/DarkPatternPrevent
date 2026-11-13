@@ -196,6 +196,7 @@ export async function GET(request: NextRequest, context: Context) {
       : !requiredStages.has(stage) ? "SKIPPED"
         : active ? (index < scan.progress ? "COVERED" : "PENDING") : "BLOCKED",
   ]));
+  const progressStages = scan.purchasePath === "DIRECT" ? 2 : stages.length;
   const summary = {
     suspected: scan.findings.filter((finding) => finding.status === "SUSPECTED").length,
     reviewNeeded: scan.findings.filter((finding) => finding.status === "REVIEW_NEEDED").length,
@@ -207,7 +208,7 @@ export async function GET(request: NextRequest, context: Context) {
       durationMs: scan.durationMs,
       purchasePath: scan.purchasePath,
       status: scan.status, cancelRequested: scan.cancelRequested,
-      progress: active ? Math.round(scan.progress * 100 / stages.length) : 100, coverage, summary,
+      progress: active ? Math.round(Math.min(scan.progress, progressStages) * 100 / progressStages) : 100, coverage, summary,
     });
   }
   if (action === "findings") return Response.json(scan.findings);
