@@ -82,7 +82,16 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
   const priceLines = [...new Set([...displayedPrices, ...textFees.map(({ label }) => label)])];
   const screenshot = stage + ".png";
   const origin = fullPage ? { x: 0, y: 0 } : await page.evaluate(() => ({ x: scrollX, y: scrollY }));
-  const png = await page.screenshot({ path: join(directory, screenshot), fullPage, scale: "css" });
+  const sensitiveFields = page.locator([
+    'input[type="password"]', 'input[type="email"]', 'input[type="tel"]',
+    'input[autocomplete*="email" i]', 'input[autocomplete*="tel" i]',
+    'input[autocomplete*="street" i]', 'input[autocomplete*="postal" i]',
+    'textarea',
+  ].join(", "));
+  const png = await page.screenshot({
+    path: join(directory, screenshot), fullPage, scale: "css",
+    mask: [sensitiveFields], maskColor: "#111827",
+  });
   // PNG IHDR stores the rendered width and height as unsigned big-endian integers.
   const screenshotArea = { ...origin, width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
   const capturedAt = new Date().toISOString();
