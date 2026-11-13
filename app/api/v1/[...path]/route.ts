@@ -20,6 +20,19 @@ const cookie = "darkpattern-session";
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 const error = (message: string, status: number) => Response.json({ error: message }, { status });
 const notFound = () => error("요청한 항목을 찾을 수 없습니다.", 404);
+const rateBuckets = new Map<string, number[]>();
+const rateLimit = (request: NextRequest, key: string, limit: number, windowMs: number) => {
+  const address = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const bucketKey = `${address}:${key}`;
+  const now = Date.now();
+  const recent = (rateBuckets.get(bucketKey) ?? []).filter((stamp) => now - stamp < windowMs);
+  if (recent.length >= limit) return Response.json({ error: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요." }, {
+    status: 429, headers: { "Retry-After": String(Math.ceil(windowMs / 1000)) },
+  });
+  recent.push(now);
+  rateBuckets.set(bucketKey, recent);
+  return null;
+};
 
 async function getReport(path: string | null): Promise<Report | null> {
   return path ? JSON.parse(await readFile(path, "utf8")) : null;
@@ -30,12 +43,16 @@ export async function POST(request: NextRequest, context: Context) {
   if (request.headers.get("content-type")?.split(";")[0] !== "application/json") {
     return error("JSON 요청이 필요합니다.", 415);
   }
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > 64 * 1024) return error("요청 본문이 너무 큽니다.", 413);
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(demoOrigin()).origin) return error("동일 출처 요청이 필요합니다.", 403);
   const body = await request.json().catch(() => null);
   const session = request.cookies.get(cookie)?.value;
 
   if (route.join("/") === "shops") {
+    const limited = rateLimit(request, "shops", 20, 60 * 60 * 1000);
+    if (limited) return limited;
     const target = scanTarget(body?.url);
     if (body?.consent !== true || !target) {
       return error("공개 HTTPS 쇼핑몰 URL과 검사 동의가 필요합니다.", 400);
@@ -92,6 +109,8 @@ export async function POST(request: NextRequest, context: Context) {
     return Response.json({ verified: true, verifiedAt: verified.verifiedAt, method: verifiedBy });
   }
   if (route.join("/") === "scans" && typeof body?.shopId === "string") {
+    const limited = rateLimit(request, "scans", 30, 60 * 60 * 1000);
+    if (limited) return limited;
     const shop = await db().shop.findFirst({ where: { id: body.shopId, ownerHash } });
     if (!shop) return notFound();
     const target = scanTarget(shop.url);
