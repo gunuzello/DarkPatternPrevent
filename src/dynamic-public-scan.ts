@@ -109,8 +109,16 @@ export async function scanDynamicPublicShop(
         // evidence instead of failing the whole scan; journey exploration will
         // report an explicit ambiguous/missing action without guessing a SKU.
         const listingText = await page.locator("body").innerText().catch(() => "");
-        const purchaseButtons = page.getByRole("button", { name: /(?:구매|장바구니|담기|buy|cart|add)/i });
-        if (/(?:[₩$£€]\s*\d[\d,.]*|\d[\d,.]*\s*원)/.test(listingText) && await purchaseButtons.count() > 0) {
+        const actionPattern = /(?:구매|장바구니|카트|담기|buy|cart|bag|add)/i;
+        const purchaseActions = page.getByRole("button", { name: actionPattern })
+          .or(page.getByRole("link", { name: actionPattern }));
+        const inputActions = page.locator('input[type="submit"], input[type="button"]');
+        const inputCount = await inputActions.evaluateAll((items, source) => items.filter((item) => {
+          if (!(item as HTMLElement).checkVisibility()) return false;
+          return new RegExp(source as string, "i").test(`${(item as HTMLInputElement).value} ${item.getAttribute("aria-label") ?? ""}`);
+        }).length, actionPattern.source);
+        if (/(?:[₩$£€]\s*\d[\d,.]*|\d[\d,.]*\s*원)/.test(listingText) &&
+            (await purchaseActions.count() + inputCount > 0)) {
           const observedAmounts = [...listingText.matchAll(/(?:₩\s*)?(\d[\d,]*)\s*원/g)]
             .map((match) => Number(match[1].replaceAll(",", ""))).filter((amount) => Number.isFinite(amount) && amount > 0);
           firstPriceExposure = {
