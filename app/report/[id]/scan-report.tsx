@@ -51,6 +51,7 @@ export function ScanReport({ id }: { id: string }) {
       <p className="eyebrow">{report.scanStatus === "COMPLETED" ? "진단 완료" : "부분 완료"}</p>
       <p className="target-url">{report.targetUrl}</p>
       <p><Link href={`/shop/${report.shopId}`}>이 상점의 진단 이력 보기</Link></p>
+      <p><a href={`/api/v1/scans/${encodeURIComponent(id)}/report`} download={`baromi-${id}.json`}>보고서 JSON 다운로드</a></p>
       <p>화면 환경 · {report.viewport === "MOBILE" ? "모바일 390×844" : "PC 1440×1000"} · {report.purchasePath === "DIRECT" ? "바로구매" : "장바구니 경유"}</p>
       {report.durationMs !== null && <p>진단 소요 시간 · {(report.durationMs / 1000).toFixed(1)}초</p>}
       <dl className="summary">
