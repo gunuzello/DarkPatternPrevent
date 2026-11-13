@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { resolveTxt } from "node:dns/promises";
 import { readFile } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "../../../../src/db";
@@ -241,6 +242,32 @@ export async function GET(request: NextRequest, context: Context) {
       durationMs: scan.durationMs,
       comparison, scanId: scan.id, shopId: scan.shopId, coverage, summary,
       findings: scan.findings });
+  }
+  return notFound();
+}
+
+export async function DELETE(request: NextRequest, context: Context) {
+  const session = request.cookies.get(cookie)?.value;
+  if (!session) return notFound();
+  const ownerHash = hash(session);
+  const route = await context.params;
+  const [resource, id] = route.path;
+  if (!id || route.path.length !== 2) return notFound();
+  if (resource === "scans") {
+    const scan = await db().scan.findFirst({ where: { id, shop: { ownerHash } }, select: { id: true, status: true } });
+    if (!scan) return notFound();
+    if (["QUEUED", "RUNNING"].includes(scan.status)) return error("진행 중인 진단은 먼저 중단해 주세요.", 409);
+    await db().scan.delete({ where: { id: scan.id } });
+    await rm(evidenceDirectory(scan.id), { recursive: true, force: true }).catch(() => undefined);
+    return Response.json({ deleted: true, scanId: scan.id });
+  }
+  if (resource === "shops") {
+    const shop = await db().shop.findFirst({ where: { id, ownerHash }, select: { id: true, scans: { select: { id: true, status: true } } } });
+    if (!shop) return notFound();
+    if (shop.scans.some((scan) => ["QUEUED", "RUNNING"].includes(scan.status))) return error("진행 중인 진단이 있어 상점을 삭제할 수 없습니다.", 409);
+    await db().shop.delete({ where: { id: shop.id } });
+    await Promise.all(shop.scans.map((scan) => rm(evidenceDirectory(scan.id), { recursive: true, force: true }).catch(() => undefined)));
+    return Response.json({ deleted: true, shopId: shop.id });
   }
   return notFound();
 }

@@ -50,6 +50,8 @@ test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async
   const status = await (await request.get(api + "scans/" + scan.scanId)).json();
   expect(status.status).toBe("CANCELLED");
   expect(status.summary.notTested).toBe(3);
+  expect((await request.delete(api + "shops/" + shop.shopId)).status()).toBe(200);
+  expect((await request.get(api + "shops/" + shop.shopId)).status()).toBe(404);
 });
 
 test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진단한다", async ({ page, playwright }) => {
