@@ -17,7 +17,7 @@ async function main() {
           AND julianday("startedAt") < julianday('now', '-6 minutes')
       `;
       const [job] = await store.$queryRaw<{ id: string; targetUrl: string }[]>`
-        UPDATE "Scan" SET status = 'RUNNING', "startedAt" = CURRENT_TIMESTAMP
+        UPDATE "Scan" SET status = 'RUNNING', "startedAt" = CURRENT_TIMESTAMP, "durationMs" = NULL
         WHERE id = (SELECT id FROM "Scan" WHERE status = 'QUEUED' ORDER BY "createdAt", id LIMIT 1)
           AND NOT EXISTS (SELECT 1 FROM "Scan" WHERE status = 'RUNNING' AND "startedAt" IS NOT NULL)
         RETURNING id, "targetUrl"

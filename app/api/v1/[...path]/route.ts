@@ -204,6 +204,7 @@ export async function GET(request: NextRequest, context: Context) {
   if (!action) {
     return Response.json({
       scanId: scan.id, shopId: scan.shopId, scenario: scan.scenario, viewport: scan.viewport,
+      durationMs: scan.durationMs,
       purchasePath: scan.purchasePath,
       status: scan.status, cancelRequested: scan.cancelRequested,
       progress: active ? Math.round(scan.progress * 100 / stages.length) : 100, coverage, summary,
@@ -222,6 +223,7 @@ export async function GET(request: NextRequest, context: Context) {
         : { status: "UNAVAILABLE" as const, reason: "기준 보고서를 읽을 수 없습니다." }) }
       : null;
     return Response.json({ ...report, viewport: scan.viewport, purchasePath: scan.purchasePath,
+      durationMs: scan.durationMs,
       comparison, scanId: scan.id, shopId: scan.shopId, coverage, summary,
       findings: scan.findings });
   }

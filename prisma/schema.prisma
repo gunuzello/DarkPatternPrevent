@@ -30,6 +30,7 @@ model Scan {
   shopId          String?
   shop            Shop?     @relation(fields: [shopId], references: [id])
   startedAt       DateTime?
+  durationMs      Int?
   progress        Int       @default(0)
   cancelRequested Boolean   @default(false)
   findings        Finding[]

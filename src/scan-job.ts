@@ -13,6 +13,7 @@ import { scanComparisonVersion } from "./scan-comparison";
 
 export async function runScanJob(id: string, targetUrl: string) {
   const store = db();
+  const startedAt = Date.now();
   try {
     const target = scanTarget(targetUrl);
     if (!target) throw new Error("허용 목록에 없는 진단 대상입니다.");
@@ -59,6 +60,7 @@ export async function runScanJob(id: string, targetUrl: string) {
         where: { id, status: "RUNNING", cancelRequested: false },
         data: {
           status: report.scanStatus,
+          durationMs: Date.now() - startedAt,
           reportPath: join(directory, "report.json"),
           findings: { create: report.findings.map(({ type, status, stage, reason, ruleVersion }) => ({
             type, status, stage, reason, ruleVersion,
@@ -77,7 +79,7 @@ export async function runScanJob(id: string, targetUrl: string) {
       data: { status: "CANCELLED" },
     });
     if (cancelled.count) return null;
-    await store.scan.updateMany({ where: { id, status: "RUNNING" }, data: { status: "FAILED" } });
+    await store.scan.updateMany({ where: { id, status: "RUNNING" }, data: { status: "FAILED", durationMs: Date.now() - startedAt } });
     throw error;
   }
 }
