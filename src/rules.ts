@@ -4,8 +4,9 @@ import type { Stage } from "./demo";
 
 type Bounds = { x: number; y: number; width: number; height: number };
 
-export type Option = { label: string; won: number; selected: boolean; bounds: Bounds };
-export type Fee = { id: string; label: string; won: number; required: boolean; bounds: Bounds };
+export type EvidenceLocation = { frame: string; visible: boolean; source: "dom" | "api" };
+export type Option = { label: string; won: number; selected: boolean; bounds: Bounds; location?: EvidenceLocation };
+export type Fee = { id: string; label: string; won: number; required: boolean; bounds: Bounds; location?: EvidenceLocation };
 export type Snapshot = {
   stage: Stage;
   url: string;

@@ -26,6 +26,7 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
           .filter((option) => option.selected || option.dataset.optionWon !== undefined)
           .map((option) => ({
             label: option.label.trim(), amount: option.dataset.optionWon, selected: option.selected, bounds,
+            location: { frame: "main", visible: true, source: "dom" as const },
           }));
       }
       const native = control instanceof HTMLInputElement;
@@ -36,6 +37,7 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
         label,
         amount: control.dataset.optionWon,
         selected: native ? control.checked : control.getAttribute("aria-checked") === "true",
+        location: { frame: "main", visible: true, source: "dom" as const },
         bounds,
       }];
     }),
@@ -54,6 +56,7 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
         label: row.innerText.trim(),
         won: Number(row.dataset.won),
         required: row.dataset.required === "true",
+        location: { frame: "main", visible: true, source: "dom" as const },
         bounds: { x: x + window.scrollX, y: y + window.scrollY, width, height },
       };
     }),
@@ -65,7 +68,7 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
     ).map((node) => {
       const row = node as HTMLElement;
       const { x, y, width, height } = row.getBoundingClientRect();
-      return { label: row.innerText.trim(), bounds: { x: x + window.scrollX, y: y + window.scrollY, width, height } };
+      return { label: row.innerText.trim(), location: { frame: "main", visible: true, source: "dom" as const }, bounds: { x: x + window.scrollX, y: y + window.scrollY, width, height } };
     }),
   );
   const structuredKeys = new Set(structuredFees.flatMap((fee) => {
