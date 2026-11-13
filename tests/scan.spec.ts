@@ -143,6 +143,20 @@ test("상품 링크가 JSON-LD에만 있어도 구조화된 URL로 상세를 찾
   expect(report.snapshots[0].url).toBe(target + "opaque?id=7");
 });
 
+test("canonical 상품 URL만 노출된 목록에서도 상세를 확인한다", async ({ browser }, info) => {
+  const { scanPublicShop } = await import("../src/public-scan");
+  const target = "https://canonical.example.com/";
+  const visited: string[] = [];
+  const report = await scanPublicShop(browser, target, info.outputPath("canonical"), async () => {}, async (url) => {
+    visited.push(url);
+    return { url, html: url === target
+      ? '<link rel="canonical" href="/opaque-product?sku=9">'
+      : '<h1>상품 9</h1><meta property="og:type" content="product"><meta property="product:price:amount" content="9000"><button>구매하기</button>' };
+  });
+  expect(visited).toEqual([target, target + "opaque-product?sku=9"]);
+  expect(report.snapshots[0].url).toBe(target + "opaque-product?sku=9");
+});
+
 test("외부 첫 화면을 읽지 못하면 진단 실패 대신 부분 완료와 원인을 기록한다", async ({ browser }, info) => {
   const { scanPublicShop } = await import("../src/public-scan");
   const report = await scanPublicShop(browser, "https://store.example.com/", info.outputPath("unavailable"), async () => {}, async () => {

@@ -85,9 +85,13 @@ export async function scanPublicShop(
           context: (anchor.closest("article, li, [class*='product' i], [class*='item' i]") ?? anchor).textContent?.replace(/\s+/g, " ").trim().slice(0, 500) ?? "",
         })));
       const structuredLinks = structuredProductLinks(await page.locator('script[type="application/ld+json"]').allTextContents());
+      const metadataLinks = await page.locator('link[rel="canonical"][href], meta[property="og:url"][content]').evaluateAll((nodes) => nodes.flatMap((node) => {
+        const href = node.getAttribute("href") ?? node.getAttribute("content") ?? "";
+        return href ? [{ href, context: "표준 상품 메타데이터" }] : [];
+      }));
       const candidates = new Set<string>();
       const contexts = new Map<string, string>();
-      for (const { href, context } of [...links, ...structuredLinks]) {
+      for (const { href, context } of [...links, ...structuredLinks, ...metadataLinks]) {
         let url: URL | null;
         try { url = publicShopUrl(new URL(href, document.url).href); } catch { continue; }
         if (!url || url.origin !== origin || url.href === document.url ||
