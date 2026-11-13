@@ -232,6 +232,14 @@ test("동적 탐색은 로그인 화면을 별도 미검사 사유로 기록한�
   expect(result.blocker).toMatchObject({ code: "LOGIN_REQUIRED", action: "ADD_TO_CART", stage: "product" });
 });
 
+test("동적 탐색은 input submit 구매 동작도 의미 이름으로 인식한다", async ({ page }) => {
+  const { explorePurchaseJourney } = await import("../src/purchase-journey");
+  await page.setContent('<input type="submit" value="장바구니에 담기">');
+  const result = await explorePurchaseJourney(page);
+  expect(result.blocker?.action).toBe("OPEN_CHECKOUT");
+  expect(result.blocker?.code).toBe("ACTION_NOT_FOUND");
+});
+
 test("바로구매 경로는 장바구니를 거치지 않고 주문서 직전에서 멈춘다", async ({ page }) => {
   const { explorePurchaseJourney } = await import("../src/purchase-journey");
   await page.route("https://direct.example/**", async (route) => {

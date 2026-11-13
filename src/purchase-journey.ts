@@ -39,8 +39,20 @@ async function actionCandidate(page: Page, pattern: RegExp) {
   const candidates = page.getByRole("button", { name: pattern })
     .or(page.getByRole("link", { name: pattern }))
     .filter({ visible: true });
-  const count = await candidates.count();
-  return { action: count === 1 ? candidates.first() : null, count };
+  const roleCount = await candidates.count();
+  const inputs = page.locator('input[type="submit"], input[type="button"]');
+  const matchingInputIndexes: number[] = [];
+  for (let index = 0; roleCount === 0 && index < await inputs.count(); index++) {
+    const input = inputs.nth(index);
+    if (!await input.isVisible().catch(() => false)) continue;
+    const name = (await input.getAttribute("value") ?? "") + " " + (await input.getAttribute("aria-label") ?? "");
+    if (pattern.test(name)) matchingInputIndexes.push(index);
+  }
+  const count = roleCount + matchingInputIndexes.length;
+  if (count !== 1) return { action: null, count };
+  return roleCount === 1
+    ? { action: candidates.first(), count }
+    : { action: inputs.nth(matchingInputIndexes[0]), count };
 }
 
 async function prepareRequiredOptions(page: Page, stage: Stage): Promise<InteractionEvidence[]> {
