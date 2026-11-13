@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ShopHistory } from "./shop-history";
 
 export const dynamic = "force-dynamic";
+export const metadata = { robots: { index: false, follow: false } };
 
 export default async function ShopPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
