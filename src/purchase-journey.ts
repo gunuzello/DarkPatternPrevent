@@ -2,9 +2,9 @@ import type { Locator, Page, Response } from "playwright";
 import type { Stage } from "./demo";
 import type { InteractionEvidence, NetworkPriceEvidence } from "./rules";
 
-const addCart = /^(?:장바구니(?:에\s*담기)?|카트에\s*담기|add\s+to\s+(?:cart|bag|basket))$/i;
-const openCart = /^(?:장바구니|카트|cart|bag|basket)(?:\s*보기)?$/i;
-const checkout = /^(?:주문서\s*보기|주문하기|구매하기|결제하기|checkout|proceed\s+to\s+checkout)$/i;
+const addCart = /(?:장바구니|카트|담기|add\s+to\s+(?:cart|bag|basket))/i;
+const openCart = /(?:장바구니|카트|cart|bag|basket)(?:\s*(?:보기|열기|가기))?$/i;
+const checkout = /(?:주문서|주문|구매|결제|checkout|proceed\s+to\s+checkout)/i;
 // Keep the candidate count visible to the blocker logic: a storefront may have
 // several product-card purchase buttons, so we must not guess which item to buy.
 const directBuy = /(?:바로\s*구매|즉시\s*구매|특가\s*구매|구매하기|buy\s+now|order\s+now)/i;
@@ -36,7 +36,9 @@ export async function priceEvidence(response: Response, stage: Stage): Promise<N
 }
 
 async function actionCandidate(page: Page, pattern: RegExp) {
-  const candidates = page.getByRole("button", { name: pattern }).or(page.getByRole("link", { name: pattern })).filter({ visible: true });
+  const candidates = page.getByRole("button", { name: pattern })
+    .or(page.getByRole("link", { name: pattern }))
+    .filter({ visible: true });
   const count = await candidates.count();
   return { action: count === 1 ? candidates.first() : null, count };
 }
