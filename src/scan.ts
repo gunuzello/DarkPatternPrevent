@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Browser, Locator, Page } from "playwright";
 import { stages, type Scenario, type Stage } from "./demo";
-import { mandatoryFeeFromText, paidOptionFromText } from "./price-text";
+import { isVariantOptionLabel, mandatoryFeeFromText, paidOptionFromText } from "./price-text";
 import { detect, type Snapshot } from "./rules";
 import { observePaidOptionChanges } from "./journey-evidence";
 
@@ -41,6 +41,7 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
     }),
   );
   const options = optionControls.flatMap(({ amount, ...control }) => {
+    if (isVariantOptionLabel(control.label)) return [];
     const won = amount === undefined ? paidOptionFromText(control.label) : Number(amount);
     return won === null || !Number.isFinite(won) ? [] : [{ ...control, won }];
   });

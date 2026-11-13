@@ -5,13 +5,21 @@ const optionPrice = new RegExp(String.raw`^.+?\s*(?:\(\s*\+\s*${amount}\s*\)|\+\
 const mandatoryFee = new RegExp(String.raw`^필수\s*(처리비|포장비|서비스비|수수료)\s*[:：]?\s*${amount}$`);
 const normalize = (value: string) => value.normalize("NFKC").replace(/\s+/g, " ").trim();
 
+export function isVariantOptionLabel(label: string) {
+  return /(?:사이즈|색상|컬러|용량|중량|구성)/i.test(normalize(label));
+}
+
 function won(value: string) {
   const parsed = Number(value.replaceAll(",", ""));
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 export function paidOptionFromText(label: string) {
-  const match = optionPrice.exec(normalize(label));
+  const normalized = normalize(label);
+  // Variant prices (size/color/volume) are product-price differences, not
+  // ancillary services that can be treated as a preselected dark pattern.
+  if (isVariantOptionLabel(normalized)) return null;
+  const match = optionPrice.exec(normalized);
   return match ? won(match[1] ?? match[2]) : null;
 }
 
