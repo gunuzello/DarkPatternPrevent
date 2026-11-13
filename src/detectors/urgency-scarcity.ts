@@ -1,4 +1,4 @@
-import type { Finding, Snapshot } from "../rules";
+import { evidenceIds, type Finding, type Snapshot } from "../rules";
 
 // A text signal is not a factual determination that a countdown or stock claim
 // is false. It is a review candidate when multiple urgency/scarcity cues are
@@ -18,5 +18,6 @@ export function detectUrgencyScarcity(product: Snapshot): Finding[] {
     stage: product.stage,
     reason: `긴급성·희소성 표현이 함께 노출되어 검토가 필요합니다. ${urgencyLine} / ${scarcityLine}`,
     evidence: [product],
+    evidenceIds: evidenceIds([product]),
   }];
 }

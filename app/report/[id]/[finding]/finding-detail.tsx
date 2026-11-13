@@ -29,6 +29,7 @@ export function FindingDetail({ id, finding }: { id: string; finding: string }) 
       <h1>{rule.title}</h1>
       <p>{detail.reason}</p>
       <p>위험 의심 · 운영자 검토 필요</p>
+      {detail.evidenceIds?.length ? <p>근거 ID · {detail.evidenceIds.join(", ")}</p> : null}
       <h2>개선 방법</h2>
       <p>{rule.recommendation}</p>
       <p><a href={rule.source}>{rule.reference}</a></p>

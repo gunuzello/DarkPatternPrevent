@@ -89,6 +89,7 @@ test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진�
     page.getByRole("link", { name: "순차공개 가격책정" }).click(),
   ]);
   await expect(page.getByRole("heading", { name: "순차공개 가격책정" })).toBeVisible();
+  await expect(page.getByText("근거 ID ·")).toBeVisible();
   await expect(page.getByRole("link", { name: /제21조의2/ })).toBeVisible();
   const image = page.getByRole("img", { name: "주문서 진단 화면" });
   await expect(page.getByRole("img", { name: "위험 신호 위치" })).toBeVisible();

@@ -9,6 +9,8 @@ export type EvidenceLocation = { frame: string; visible: boolean; source: "dom" 
 export type Option = { label: string; won: number; selected: boolean; bounds: Bounds; location?: EvidenceLocation };
 export type Fee = { id: string; label: string; won: number; required: boolean; bounds: Bounds; location?: EvidenceLocation };
 export type Snapshot = {
+  /** Stable reference used by findings, review payloads, and rescan diffs. */
+  evidenceId?: string;
   stage: Stage;
   url: string;
   screenshot: string;
@@ -48,8 +50,14 @@ export type Finding = {
   stage: Stage;
   reason: string;
   evidence: Snapshot[];
+  /** Every emitted finding carries the IDs of the evidence it cites. */
+  evidenceIds?: string[];
   elementBounds?: Bounds;
 };
+
+export function evidenceIds(snapshots: Snapshot[]) {
+  return snapshots.map((snapshot) => snapshot.evidenceId ?? `evidence:${snapshot.stage}`);
+}
 
 export function detect([product, ...later]: Snapshot[], priorDisclosures: PriorFeeDisclosure[] = []): Finding[] {
   if (!product) return [];

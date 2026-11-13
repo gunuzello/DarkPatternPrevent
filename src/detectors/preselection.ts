@@ -1,4 +1,4 @@
-import type { Finding, Snapshot } from "../rules";
+import { evidenceIds, type Finding, type Snapshot } from "../rules";
 
 export function detectPreselection(product: Snapshot): Finding[] {
   const findings: Finding[] = [];
@@ -12,6 +12,7 @@ export function detectPreselection(product: Snapshot): Finding[] {
         reason: "유료 옵션이 기본 선택되어 있습니다. " + option.label,
         elementBounds: option.bounds,
         evidence: [product],
+        evidenceIds: evidenceIds([product]),
       });
     }
   }

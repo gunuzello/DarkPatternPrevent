@@ -1,4 +1,4 @@
-import type { Fee, Finding, PriorFeeDisclosure, Snapshot } from "../rules";
+import { evidenceIds, type Fee, type Finding, type PriorFeeDisclosure, type Snapshot } from "../rules";
 import { mandatoryFeeFromText } from "../price-text";
 
 function paidRequired(fee: Fee) {
@@ -28,6 +28,7 @@ export function detectDripPricing(product: Snapshot, later: Snapshot[], priorDis
         reason: "상품 상세 이후에 필수 비용이 처음 표시됩니다. " + fee.label,
         elementBounds: fee.bounds,
         evidence: [product, snapshot],
+        evidenceIds: evidenceIds([product, snapshot]),
       });
       disclosed.push(fee);
     }

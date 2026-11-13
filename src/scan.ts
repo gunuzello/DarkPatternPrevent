@@ -107,7 +107,7 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
   // PNG IHDR stores the rendered width and height as unsigned big-endian integers.
   const screenshotArea = { ...origin, width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
   const capturedAt = new Date().toISOString();
-  return { stage, url, screenshot, screenshotArea, capturedAt, priceLines, textLines, options, fees };
+  return { evidenceId: `evidence:${stage}`, stage, url, screenshot, screenshotArea, capturedAt, priceLines, textLines, options, fees };
 }
 
 export async function scanDemo(
