@@ -10,6 +10,7 @@ import { scanComparisonVersion } from "./scan-comparison";
 import { detect, type InteractionEvidence, type Snapshot } from "./rules";
 import { feeMentionsFromText } from "./price-text";
 import { collectReviewCandidates } from "./review-candidates";
+import { structuredProductLinks } from "./structured-product-links";
 
 const rootHost = (hostname: string) => hostname.replace(/^www\./, "");
 
@@ -70,25 +71,7 @@ export async function scanDynamicPublicShop(
         href: item.getAttribute("href") ?? "",
         context: (item.closest("article, li, [class*='product' i], [class*='item' i]") ?? item).textContent?.replace(/\s+/g, " ").trim().slice(0, 500) ?? "",
       })));
-      const structuredLinks = await page.locator('script[type="application/ld+json"]').evaluateAll((scripts) => scripts.flatMap((script) => {
-        try {
-          const value = JSON.parse(script.textContent ?? "null") as unknown;
-          const urls: string[] = [];
-          const visit = (item: unknown, depth = 0, productContext = false) => {
-            if (depth > 5 || item === null || typeof item !== "object") return;
-            if (Array.isArray(item)) { item.slice(0, 50).forEach((entry) => visit(entry, depth + 1, productContext)); return; }
-            const object = item as Record<string, unknown>;
-            const type = typeof object["@type"] === "string" ? object["@type"] : "";
-            const nextContext = productContext || /product|itemlist|listitem/i.test(type);
-            for (const [key, child] of Object.entries(object)) {
-              if (key === "url" && typeof child === "string" && nextContext) urls.push(child);
-              else visit(child, depth + 1, nextContext);
-            }
-          };
-          visit(value);
-          return urls.slice(0, 20).map((href) => ({ href, context: "구조화된 상품 데이터" }));
-        } catch { return []; }
-      }));
+      const structuredLinks = structuredProductLinks(await page.locator('script[type="application/ld+json"]').allTextContents());
       const candidates = new Set<string>();
       const contexts = new Map<string, string>();
       for (const { href, context } of [...links, ...structuredLinks]) {
