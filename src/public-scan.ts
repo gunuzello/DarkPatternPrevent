@@ -87,12 +87,15 @@ export async function scanPublicShop(
         try {
           const value = JSON.parse(script.textContent ?? "null") as unknown;
           const urls: string[] = [];
-          const visit = (item: unknown, depth = 0) => {
+          const visit = (item: unknown, depth = 0, productContext = false) => {
             if (depth > 5 || item === null || typeof item !== "object") return;
-            if (Array.isArray(item)) { item.slice(0, 50).forEach((entry) => visit(entry, depth + 1)); return; }
-            for (const [key, child] of Object.entries(item as Record<string, unknown>)) {
-              if (key === "url" && typeof child === "string") urls.push(child);
-              else visit(child, depth + 1);
+            if (Array.isArray(item)) { item.slice(0, 50).forEach((entry) => visit(entry, depth + 1, productContext)); return; }
+            const object = item as Record<string, unknown>;
+            const type = typeof object["@type"] === "string" ? object["@type"] : "";
+            const nextContext = productContext || /product|itemlist|listitem/i.test(type);
+            for (const [key, child] of Object.entries(object)) {
+              if (key === "url" && typeof child === "string" && nextContext) urls.push(child);
+              else visit(child, depth + 1, nextContext);
             }
           };
           visit(value);

@@ -136,7 +136,7 @@ test("상품 링크가 JSON-LD에만 있어도 구조화된 URL로 상세를 찾
   const report = await scanPublicShop(browser, target, info.outputPath("jsonld"), async () => {}, async (url) => {
     visited.push(url);
     return { url, html: url === target
-      ? '<script type="application/ld+json">{"@type":"ItemList","itemListElement":[{"item":{"url":"/opaque?id=7"}}]}</script>'
+      ? '<script type="application/ld+json">[{"@type":"Organization","url":"/about"},{"@type":"ItemList","itemListElement":[{"item":{"url":"/opaque?id=7"}}]}]</script>'
       : '<h1>상품 7</h1><meta property="og:type" content="product"><meta property="product:price:amount" content="12000"><button>장바구니에 담기</button>' };
   });
   expect(visited).toEqual([target, target + "opaque?id=7"]);
