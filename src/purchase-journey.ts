@@ -5,7 +5,9 @@ import type { InteractionEvidence, NetworkPriceEvidence } from "./rules";
 const addCart = /^(?:장바구니(?:에\s*담기)?|카트에\s*담기|add\s+to\s+(?:cart|bag|basket))$/i;
 const openCart = /^(?:장바구니|카트|cart|bag|basket)(?:\s*보기)?$/i;
 const checkout = /^(?:주문서\s*보기|주문하기|구매하기|결제하기|checkout|proceed\s+to\s+checkout)$/i;
-const directBuy = /^(?:바로\s*구매|즉시\s*구매|buy\s+now|order\s+now)$/i;
+// Keep the candidate count visible to the blocker logic: a storefront may have
+// several product-card purchase buttons, so we must not guess which item to buy.
+const directBuy = /(?:바로\s*구매|즉시\s*구매|특가\s*구매|구매하기|buy\s+now|order\s+now)/i;
 const priceKey = /(?:^|_)(?:total|subtotal|price|amount|shipping|delivery|fee|discount)(?:_|$)/i;
 
 function extractPrices(value: unknown, path = "$", depth = 0): { path: string; won: number }[] {

@@ -60,7 +60,7 @@ export function ScanReport({ id }: { id: string }) {
         <div><dt>미검사</dt><dd>{report.summary.notTested}</dd></div>
       </dl>
       <h2>검사 범위</h2>
-      {report.executionMode === "STATIC" && <p>공개 상품의 초기 HTML을 검사했습니다. 장바구니·주문서의 추가 비용과 스크립트 실행 후 표시되는 항목은 미검사입니다.</p>}
+      {report.executionMode === "STATIC" && <p>공개 상품 화면(서버 HTML 또는 안전한 같은 출처 렌더링)을 검사했습니다. 장바구니·주문서의 추가 비용과 구매 행동 후 표시되는 항목은 미검사입니다.</p>}
       {report.executionMode === "DYNAMIC" && <p>확인된 쇼핑몰에서 별도 세션으로 동적 구매 흐름을 검사했습니다. 실제 주문 확정과 결제는 실행하지 않았습니다.</p>}
       {report.collectionFailure && <p role="status">수집 안내: {report.collectionFailure}</p>}
       <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {report.coverage[stage] === "COVERED" ? (report.executionMode === "STATIC" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : report.coverage[stage] === "SKIPPED" ? "선택 경로에 없음" : "미검사"}</li>)}</ul>
@@ -68,7 +68,7 @@ export function ScanReport({ id }: { id: string }) {
       <h2>발견된 항목</h2>
       {report.findings.length ? <ul>{report.findings.map((finding) => (
         <li key={finding.id}><Link href={"/report/" + id + "/" + finding.id}>{legalRules[finding.type].title}</Link> · {stageLabels[finding.stage]}</li>
-      ))}</ul> : <p>{report.executionMode === "STATIC" ? "초기 HTML에서 지원하는 문구 규칙에 해당하는 항목을 찾지 못했습니다. 실제 선택 과정과 구매 흐름에 대한 추가 검사가 필요합니다." : "검사한 범위에서 위험 신호가 발견되지 않았습니다."}</p>}
+      ))}</ul> : <p>{report.executionMode === "STATIC" ? "검사한 공개 화면에서 지원하는 규칙의 위험 신호를 찾지 못했습니다. 구매 행동 이후 단계는 추가 검사가 필요합니다." : "검사한 범위에서 위험 신호가 발견되지 않았습니다."}</p>}
       {report.comparison && (
         <section>
           <h2>재진단 비교</h2>

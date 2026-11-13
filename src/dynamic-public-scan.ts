@@ -84,7 +84,25 @@ export async function scanDynamicPublicShop(
           break;
         }
       }
-      if (!found) throw new Error("동적으로 검사할 상품 상세 화면을 찾지 못했습니다.");
+      if (!found) {
+        // A client-rendered storefront may expose product cards as buttons with
+        // no detail URL. Preserve the rendered listing as the product-stage
+        // evidence instead of failing the whole scan; journey exploration will
+        // report an explicit ambiguous/missing action without guessing a SKU.
+        const listingText = await page.locator("body").innerText().catch(() => "");
+        const purchaseButtons = page.getByRole("button", { name: /(?:구매|장바구니|담기|buy|cart|add)/i });
+        if (/(?:[₩$£€]\s*\d[\d,.]*|\d[\d,.]*\s*원)/.test(listingText) && await purchaseButtons.count() > 0) {
+          const observedAmounts = [...listingText.matchAll(/(?:₩\s*)?(\d[\d,]*)\s*원/g)]
+            .map((match) => Number(match[1].replaceAll(",", ""))).filter((amount) => Number.isFinite(amount) && amount > 0);
+          firstPriceExposure = {
+            status: "OBSERVED", url: listingUrl, productUrl: listingUrl, text: listingText.slice(0, 2_000),
+            amounts: [...new Set(observedAmounts)].slice(0, 20), feeMentions: feeMentionsFromText(listingText),
+            screenshot: listingScreenshot, capturedAt: listingCapturedAt,
+          };
+        } else {
+          throw new Error("동적으로 검사할 상품 상세 화면을 찾지 못했습니다.");
+        }
+      }
     }
 
     await mkdir(directory, { recursive: true });
