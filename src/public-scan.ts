@@ -150,7 +150,10 @@ export async function scanPublicShop(
             return report;
           }
         } catch { /* fall through to an explicit partial result */ }
-        finally { await rendered.close(); await renderedProxy.close(); }
+        finally {
+          await Promise.race([rendered.close(), new Promise<void>((resolve) => setTimeout(resolve, 2_000))]);
+          await Promise.race([renderedProxy.close(), new Promise<void>((resolve) => setTimeout(resolve, 2_000))]);
+        }
       }
       if (!found) return partial("상품 상세 화면을 찾지 못했습니다. 상품 상세 URL을 직접 입력해 주세요.");
     }
