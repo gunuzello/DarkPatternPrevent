@@ -108,6 +108,48 @@ export async function scanPublicShop(
         found = true;
         break;
       }
+      if (!found) {
+        // Many modern storefronts are client-rendered and expose product cards as
+        // buttons rather than links. Use a same-origin rendered pass as a generic
+        // fallback; this is still a public, non-interactive inspection and does
+        // not submit forms or enter a purchase flow.
+        const rendered = await browser.newContext({
+          javaScriptEnabled: true, serviceWorkers: "block", acceptDownloads: false,
+          viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 },
+          isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1,
+        });
+        try {
+          const renderedPage = await rendered.newPage();
+          renderedPage.setDefaultTimeout(8000);
+          const origin = new URL(document.url).origin;
+          await rendered.route("**/*", (route) => {
+            try {
+              const requestUrl = new URL(route.request().url());
+              if (requestUrl.origin === origin || requestUrl.protocol === "data:") return route.continue();
+            } catch { /* abort malformed requests */ }
+            return route.abort();
+          });
+          await renderedPage.goto(document.url, { waitUntil: "domcontentloaded", timeout: 15_000 });
+          await renderedPage.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
+          const bodyText = await renderedPage.locator("body").innerText().catch(() => "");
+          const purchaseActions = renderedPage.getByRole("button", { name: /(?:구매|장바구니|담기|buy|cart|add)/i });
+          const hasProductSignal = /(?:[₩$£€]\s*\d|\d[\d,.]*\s*원)/.test(bodyText) && await purchaseActions.count() > 0;
+          if (hasProductSignal) {
+            document = { url: renderedPage.url(), html: await renderedPage.content() };
+            const product = await capture(renderedPage, "product", directory, renderedPage.locator("body"), renderedPage.url(), false);
+            await onStage(product);
+            const report = {
+              comparisonVersion: scanComparisonVersion,
+              scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport, purchasePath,
+              scenario: "public" as const, targetUrl, snapshots: [product],
+              priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]), collectionFailure: null,
+            };
+            await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
+            return report;
+          }
+        } catch { /* fall through to an explicit partial result */ }
+        finally { await rendered.close(); }
+      }
       if (!found) return partial("상품 상세 화면을 찾지 못했습니다. 상품 상세 URL을 직접 입력해 주세요.");
     }
 

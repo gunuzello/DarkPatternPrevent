@@ -83,7 +83,14 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
   });
   const fees = [...structuredFees, ...textFees];
   const displayedPrices = await main.locator('[aria-label="가격 내역"] li, [data-total]').allInnerTexts();
-  const priceLines = [...new Set([...displayedPrices, ...textFees.map(({ label }) => label)])];
+  // Some storefronts render totals without a dedicated price attribute. Keep
+  // normalized visible price lines as evidence, while leaving rule decisions to
+  // structured fields and the price ledger.
+  const bodyText = await main.innerText().catch(() => "");
+  const textPrices = bodyText.split(/\n+/).map((line) => line.trim()).filter((line) =>
+    /(?:[₩$£€]\s*\d[\d,.]*|\d[\d,.]*\s*원)/.test(line),
+  ).slice(0, 100);
+  const priceLines = [...new Set([...displayedPrices, ...textPrices, ...textFees.map(({ label }) => label)])];
   const screenshot = stage + ".png";
   const origin = fullPage ? { x: 0, y: 0 } : await page.evaluate(() => ({ x: scrollX, y: scrollY }));
   const sensitiveFields = page.locator([
