@@ -1,6 +1,8 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const verificationName = "baromi-site-verification";
+export const verificationFile = ".well-known/baromi-site-verification";
+export const verificationDnsPrefix = "_baromi-verification";
 
 export function createSiteVerification() {
   const token = randomBytes(24).toString("base64url");

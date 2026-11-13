@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { resolveTxt } from "node:dns/promises";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { NextRequest, NextResponse } from "next/server";
@@ -10,7 +11,7 @@ import { scanTarget, demoOrigin } from "../../../../src/targets";
 import { compareScans } from "../../../../src/scan-comparison";
 import type { scanDemo } from "../../../../src/scan";
 import { fetchPublicHtml } from "../../../../src/public-html";
-import { createSiteVerification, matchesVerification, verificationName } from "../../../../src/site-verification";
+import { createSiteVerification, hashToken, matchesVerification, verificationDnsPrefix, verificationFile, verificationName } from "../../../../src/site-verification";
 
 type Context = { params: Promise<{ path: string[] }> };
 type Report = Omit<Awaited<ReturnType<typeof scanDemo>>, "scenario"> & { scenario: string };
@@ -48,6 +49,8 @@ export async function POST(request: NextRequest, context: Context) {
       verification: target.scenario === "public" ? {
         name: verificationName, token: verification.token,
         metaTag: `<meta name="${verificationName}" content="${verification.token}">`,
+        filePath: `/${verificationFile}`,
+        dnsRecord: `${verificationDnsPrefix}.${new URL(shop.url).hostname} TXT ${verification.token}`,
       } : null,
     }, { status: 201 });
     if (!session) response.cookies.set(cookie, token, { httpOnly: true, sameSite: "strict", path: "/", secure: request.nextUrl.protocol === "https:" });
@@ -70,11 +73,22 @@ export async function POST(request: NextRequest, context: Context) {
     // Prove control of the storefront itself, not merely a user-supplied deep URL.
     const verificationUrl = new URL("/", shop.url).href;
     const document = await fetchPublicHtml(verificationUrl).catch(() => null);
-    if (!document || !matchesVerification(document.html, shop.verificationHash)) {
-      return error(`쇼핑몰 첫 화면의 ${verificationName} 값을 확인하지 못했습니다.`, 409);
+    let verifiedBy: "meta" | "file" | "dns" | null = document && matchesVerification(document.html, shop.verificationHash) ? "meta" : null;
+    if (!verifiedBy) {
+      const fileUrl = new URL(`/${verificationFile}`, shop.url).href;
+      const fileToken = await fetch(fileUrl, { redirect: "manual", signal: AbortSignal.timeout(8000) })
+        .then(async (response) => response.ok ? (await response.text()).trim() : null).catch(() => null);
+      if (fileToken && fileToken.length <= 256 && /^[A-Za-z0-9_-]+$/.test(fileToken) && hashToken(fileToken) === shop.verificationHash) verifiedBy = "file";
     }
+    if (!verifiedBy) {
+      const hostname = new URL(shop.url).hostname;
+      const txt = await resolveTxt(`${verificationDnsPrefix}.${hostname}`).catch(() => [] as string[][]);
+      const values = txt.flat().map((value) => value.trim());
+      if (values.some((value) => value.length <= 256 && /^[A-Za-z0-9_-]+$/.test(value) && hashToken(value) === shop.verificationHash)) verifiedBy = "dns";
+    }
+    if (!verifiedBy) return error(`메타 태그, ${verificationFile} 파일 또는 DNS TXT에서 확인 값을 찾지 못했습니다.`, 409);
     const verified = await db().shop.update({ where: { id: shop.id }, data: { verifiedAt: new Date() } });
-    return Response.json({ verified: true, verifiedAt: verified.verifiedAt });
+    return Response.json({ verified: true, verifiedAt: verified.verifiedAt, method: verifiedBy });
   }
   if (route.join("/") === "scans" && typeof body?.shopId === "string") {
     const shop = await db().shop.findFirst({ where: { id: body.shopId, ownerHash } });
