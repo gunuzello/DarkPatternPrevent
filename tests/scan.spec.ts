@@ -303,3 +303,12 @@ test("브라우저 연결은 검증된 공개 주소로 고정하고 내부망·
     await expect(safeConnectTarget(authority, async () => [...addresses])).rejects.toThrow();
   }
 });
+
+test("동적 브라우저 요청은 검증된 쇼핑몰 출처만 허용한다", async () => {
+  const { isAllowedDynamicRequest } = await import("../src/dynamic-public-scan");
+  expect(isAllowedDynamicRequest("https://shop.example.com/", "https://shop.example.com/assets/app.js")).toBe(true);
+  expect(isAllowedDynamicRequest("https://www.shop.example.com/", "https://shop.example.com/api/cart")).toBe(true);
+  expect(isAllowedDynamicRequest("https://shop.example.com/", "https://cdn.example.net/app.js")).toBe(false);
+  expect(isAllowedDynamicRequest("https://shop.example.com/", "http://shop.example.com/app.js")).toBe(false);
+  expect(isAllowedDynamicRequest("https://shop.example.com/", "not-a-url")).toBe(false);
+});

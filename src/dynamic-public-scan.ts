@@ -13,6 +13,17 @@ import { collectReviewCandidates } from "./review-candidates";
 
 const rootHost = (hostname: string) => hostname.replace(/^www\./, "");
 
+export function isAllowedDynamicRequest(targetUrl: string, requestUrl: string) {
+  try {
+    const target = new URL(targetUrl);
+    const request = new URL(requestUrl);
+    return ["data:", "blob:"].includes(request.protocol) ||
+      (request.protocol === "https:" && rootHost(request.hostname) === rootHost(target.hostname));
+  } catch {
+    return false;
+  }
+}
+
 export async function scanDynamicPublicShop(
   browser: Browser,
   targetUrl: string,
@@ -40,7 +51,7 @@ export async function scanDynamicPublicShop(
       // Keep the dynamic session inside the verified storefront origin. A
       // third-party asset is not evidence-critical and must not expand the
       // requested scan's network boundary or receive session state.
-      if (url.protocol !== "https:" || rootHost(url.hostname) !== rootHost(target.hostname)) {
+      if (!isAllowedDynamicRequest(target.href, url.href)) {
         await route.abort();
         return;
       }
