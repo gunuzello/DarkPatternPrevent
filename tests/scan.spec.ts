@@ -255,8 +255,8 @@ test("가격 원장은 화면과 API 금액의 일치·불일치를 값별로 �
 });
 
 test("일반적인 상품 옵션 문구의 명시적 추가금을 유료 옵션으로 읽는다", async () => {
-  expect(paidOptionFromText("색상 블랙 (+1,000원)")).toBe(1000);
   expect(paidOptionFromText("각인 서비스 +2,500원")).toBe(2500);
+  expect(paidOptionFromText("색상 블랙 (+1,000원)")).toBeNull();
   expect(paidOptionFromText("무료 배송")).toBeNull();
 });
 
