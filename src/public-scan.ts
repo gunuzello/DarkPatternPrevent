@@ -50,7 +50,22 @@ export async function scanPublicShop(
       `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'">` + html,
       { waitUntil: "domcontentloaded" },
     );
-    let document = await load(targetUrl);
+    const partial = async (reason: string) => {
+      const report = {
+        comparisonVersion: scanComparisonVersion,
+        scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport, purchasePath,
+        scenario: "public" as const, targetUrl, snapshots: [], priceLedger: buildPriceLedger([]), findings: [],
+        collectionFailure: reason,
+      };
+      await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
+      return report;
+    };
+    let document;
+    try {
+      document = await load(targetUrl);
+    } catch {
+      return partial("첫 화면을 불러오지 못했습니다. 공개 HTTPS 상품 URL과 접근 가능 여부를 확인해 주세요.");
+    }
     await render(document.html);
     let firstPriceExposure: FirstPriceExposure | undefined;
     if (!await isProductPage(page, document.url)) {
@@ -93,7 +108,7 @@ export async function scanPublicShop(
         found = true;
         break;
       }
-      if (!found) throw new Error("상품 상세 화면을 찾지 못했습니다. 상품 상세 URL을 입력해 주세요.");
+      if (!found) return partial("상품 상세 화면을 찾지 못했습니다. 상품 상세 URL을 직접 입력해 주세요.");
     }
 
     await page.locator("body").waitFor({ state: "visible" });
@@ -103,7 +118,7 @@ export async function scanPublicShop(
       comparisonVersion: scanComparisonVersion,
       scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport, purchasePath,
       scenario: "public" as const, targetUrl,
-      snapshots: [product], priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]),
+      snapshots: [product], priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]), collectionFailure: null,
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
     return report;

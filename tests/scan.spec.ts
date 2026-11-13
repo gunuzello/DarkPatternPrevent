@@ -128,6 +128,17 @@ test("외부 쇼핑몰 형식의 상품을 로컬 증거로 검사하고 후속 
   expect(report.findings.map(({ type }) => type)).toEqual(["PRESELECTION"]);
 });
 
+test("외부 첫 화면을 읽지 못하면 진단 실패 대신 부분 완료와 원인을 기록한다", async ({ browser }, info) => {
+  const { scanPublicShop } = await import("../src/public-scan");
+  const report = await scanPublicShop(browser, "https://store.example.com/", info.outputPath("unavailable"), async () => {}, async () => {
+    throw new Error("network blocked");
+  });
+  expect(report.scanStatus).toBe("PARTIAL");
+  expect(report.snapshots).toEqual([]);
+  expect(report.collectionFailure).toContain("첫 화면");
+  expect(JSON.parse(await readFile(join(info.outputPath("unavailable"), "report.json"), "utf8"))).toEqual(report);
+});
+
 test("외부 대상 검사는 사설 주소나 혼합 DNS 응답을 거부한다", async () => {
   const { publicAddress } = await import("../src/public-html");
   const { scanTarget } = await import("../src/targets");
