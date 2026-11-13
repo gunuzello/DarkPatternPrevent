@@ -25,3 +25,10 @@
 - `package.json` 또는 lockfile 변경 시
 - 브라우저 자동화·스크린샷·OCR·LLM 패키지를 추가할 때
 - 상용 배포 번들을 만들기 직전
+
+## 2026-11-13 검증 결과
+
+- `npm audit --omit=dev --audit-level=high`: 알려진 높은 수준 이상 취약점 0건
+- `npm audit --audit-level=high`: 개발 의존성 포함 높은 수준 이상 취약점 0건
+
+이 결과는 현재 lockfile과 설치 상태에 대한 스냅샷이다. 의존성 업데이트 후 다시 실행해야 한다.
