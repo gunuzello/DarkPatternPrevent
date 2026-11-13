@@ -145,8 +145,17 @@ export async function scanPublicShop(
           await renderedPage.goto(document.url, { waitUntil: "domcontentloaded", timeout: 15_000 });
           await renderedPage.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
           const bodyText = await renderedPage.locator("body").innerText().catch(() => "");
-          const purchaseActions = renderedPage.getByRole("button", { name: /(?:구매|장바구니|담기|buy|cart|add)/i });
-          const hasProductSignal = /(?:[₩$£€]\s*\d|\d[\d,.]*\s*원)/.test(bodyText) && await purchaseActions.count() > 0;
+          const actionPattern = /(?:구매|장바구니|카트|담기|buy|cart|bag|add)/i;
+          const purchaseActions = renderedPage.getByRole("button", { name: actionPattern })
+            .or(renderedPage.getByRole("link", { name: actionPattern }));
+          const inputActions = renderedPage.locator('input[type="submit"], input[type="button"]');
+          const inputCount = await inputActions.evaluateAll((items, source) => items.filter((item) => {
+            if (!(item as HTMLElement).checkVisibility()) return false;
+            const text = `${(item as HTMLInputElement).value} ${item.getAttribute("aria-label") ?? ""}`;
+            return new RegExp(source as string, "i").test(text);
+          }).length, actionPattern.source);
+          const hasProductSignal = /(?:[₩$£€]\s*\d|\d[\d,.]*\s*원)/.test(bodyText) &&
+            (await purchaseActions.count() + inputCount > 0);
           if (hasProductSignal) {
             document = { url: renderedPage.url(), html: await renderedPage.content() };
             const product = await capture(renderedPage, "product", directory, renderedPage.locator("body"), renderedPage.url(), false);
