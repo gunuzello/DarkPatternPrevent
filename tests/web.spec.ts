@@ -72,6 +72,9 @@ test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진�
   await page.waitForURL("**/report/*");
   const reportUrl = page.url();
   const baselineScanId = new URL(reportUrl).pathname.split("/").at(-1);
+  const downloadResponse = await page.request.get(origin + "/api/v1/scans/" + baselineScanId + "/report?download=1");
+  expect(downloadResponse.status()).toBe(200);
+  expect(downloadResponse.headers()["content-disposition"]).toContain(`baromi-${baselineScanId}.json`);
   const differentShop = await page.request.post(origin + "/api/v1/shops", {
     data: { url: riskyUrl, consent: true },
   });
