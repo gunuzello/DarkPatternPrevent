@@ -288,10 +288,14 @@ export async function GET(request: NextRequest, context: Context) {
       ? { baselineScanId: scan.baselineScanId, ...(before ? compareScans(before, report)
         : { status: "UNAVAILABLE" as const, reason: "기준 보고서를 읽을 수 없습니다." }) }
       : null;
-    return Response.json({ ...report, viewport: scan.viewport, purchasePath: scan.purchasePath,
+    const response = Response.json({ ...report, viewport: scan.viewport, purchasePath: scan.purchasePath,
       durationMs: scan.durationMs,
       comparison, scanId: scan.id, shopId: scan.shopId, coverage, summary,
       findings: scan.findings });
+    if (request.nextUrl.searchParams.get("download") === "1") {
+      response.headers.set("Content-Disposition", `attachment; filename="baromi-${scan.id}.json"`);
+    }
+    return response;
   }
   return notFound();
 }
