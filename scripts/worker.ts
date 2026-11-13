@@ -14,7 +14,7 @@ async function main() {
       await store.$executeRaw`
         UPDATE "Scan" SET status = CASE WHEN "cancelRequested" THEN 'CANCELLED' ELSE 'FAILED' END
         WHERE status = 'RUNNING' AND "startedAt" IS NOT NULL
-          AND julianday("startedAt") < julianday('now', '-6 minutes')
+          AND ("cancelRequested" OR julianday("startedAt") < julianday('now', '-6 minutes'))
       `;
       const [job] = await store.$queryRaw<{ id: string; targetUrl: string }[]>`
         UPDATE "Scan" SET status = 'RUNNING', "startedAt" = CURRENT_TIMESTAMP, "durationMs" = NULL
