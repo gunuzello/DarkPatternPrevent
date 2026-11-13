@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "../../../../src/db";
 import { stages } from "../../../../src/demo";
+import type { Stage } from "../../../../src/demo";
 import { evidenceDirectory } from "../../../../src/evidence-directory";
 import { scanTarget, demoOrigin } from "../../../../src/targets";
 import { compareScans } from "../../../../src/scan-comparison";
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest, context: Context) {
     if (!shop) return notFound();
     const target = scanTarget(shop.url);
     if (!target) return error("지원하는 쇼핑몰 주소가 아닙니다.", 400);
+    const purchasePath = body.purchasePath === "DIRECT" ? "DIRECT" : "CART";
     if (!["CONTEST", "DYNAMIC"].includes(body.profile) || !["DESKTOP", "MOBILE"].includes(body.viewport) ||
         !Array.isArray(body.flows) || body.flows.length !== 1 || body.flows[0] !== "PURCHASE" ||
         body.productLimit !== 1) {
@@ -93,7 +95,8 @@ export async function POST(request: NextRequest, context: Context) {
       if (typeof baselineScanId !== "string") return error("기준 진단 ID를 확인해 주세요.", 400);
       const baseline = await db().scan.findFirst({
         where: {
-          id: baselineScanId, shopId: shop.id, targetUrl: target.url, scenario: target.scenario, viewport: body.viewport,
+          id: baselineScanId, shopId: shop.id, targetUrl: target.url, scenario: target.scenario,
+          viewport: body.viewport, purchasePath,
           status: { in: ["COMPLETED", "PARTIAL"] }, reportPath: { not: null },
         },
         select: { id: true },
@@ -104,6 +107,7 @@ export async function POST(request: NextRequest, context: Context) {
       data: {
         id: randomUUID(), shopId: shop.id, targetUrl: target.url, scenario: target.scenario,
         executionMode: body.profile === "DYNAMIC" ? "DYNAMIC" : "STATIC", viewport: body.viewport,
+        purchasePath,
         baselineScanId, status: "QUEUED",
       },
     });
@@ -172,24 +176,30 @@ export async function GET(request: NextRequest, context: Context) {
   });
   if (!scan) return notFound();
   const active = ["QUEUED", "RUNNING"].includes(scan.status);
-  const coverage = Object.fromEntries(stages.map((stage, index) => [
-    stage, index < scan.progress ? "COVERED" : active ? "PENDING" : "BLOCKED",
+  const storedReport = !active && scan.reportPath ? await getReport(scan.reportPath).catch(() => null) : null;
+  const observedStages = new Set(storedReport?.snapshots.map(({ stage }) => stage) ?? []);
+  const requiredStages = scan.purchasePath === "DIRECT" ? new Set<Stage>(["product", "checkout"]) : new Set<Stage>(stages);
+  const coverage = Object.fromEntries(stages.map((stage, index) => [stage,
+    observedStages.has(stage) ? "COVERED"
+      : !requiredStages.has(stage) ? "SKIPPED"
+        : active ? (index < scan.progress ? "COVERED" : "PENDING") : "BLOCKED",
   ]));
   const summary = {
     suspected: scan.findings.filter((finding) => finding.status === "SUSPECTED").length,
     reviewNeeded: scan.findings.filter((finding) => finding.status === "REVIEW_NEEDED").length,
-    notTested: active ? 0 : stages.length - scan.progress,
+    notTested: active ? 0 : [...requiredStages].filter((stage) => !observedStages.has(stage)).length,
   };
   if (!action) {
     return Response.json({
       scanId: scan.id, shopId: scan.shopId, scenario: scan.scenario, viewport: scan.viewport,
+      purchasePath: scan.purchasePath,
       status: scan.status, cancelRequested: scan.cancelRequested,
       progress: active ? Math.round(scan.progress * 100 / stages.length) : 100, coverage, summary,
     });
   }
   if (action === "findings") return Response.json(scan.findings);
   if (action === "report" && scan.reportPath) {
-    const report = await getReport(scan.reportPath);
+    const report = storedReport ?? await getReport(scan.reportPath);
     const baseline = scan.baselineScanId ? await db().scan.findFirst({
       where: { id: scan.baselineScanId, shopId: scan.shopId, shop: { ownerHash } },
       select: { reportPath: true },
@@ -199,7 +209,8 @@ export async function GET(request: NextRequest, context: Context) {
       ? { baselineScanId: scan.baselineScanId, ...(before ? compareScans(before, report)
         : { status: "UNAVAILABLE" as const, reason: "기준 보고서를 읽을 수 없습니다." }) }
       : null;
-    return Response.json({ ...report, viewport: scan.viewport, comparison, scanId: scan.id, shopId: scan.shopId, coverage, summary,
+    return Response.json({ ...report, viewport: scan.viewport, purchasePath: scan.purchasePath,
+      comparison, scanId: scan.id, shopId: scan.shopId, coverage, summary,
       findings: scan.findings });
   }
   return notFound();

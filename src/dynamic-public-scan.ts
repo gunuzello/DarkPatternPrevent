@@ -19,6 +19,7 @@ export async function scanDynamicPublicShop(
   proxyServer: string,
   viewport: "DESKTOP" | "MOBILE",
   onStage: (snapshot: Snapshot) => Promise<void>,
+  purchasePath: "CART" | "DIRECT" = "CART",
 ) {
   const target = new URL(targetUrl);
   await mkdir(directory, { recursive: true });
@@ -94,12 +95,12 @@ export async function scanDynamicPublicShop(
       snapshots.push(snapshot);
       if (stage === "product") interactions.push(...await observePaidOptionChanges(page, page.locator("body"), stage));
       await onStage(snapshot);
-    });
+    }, purchasePath);
     interactions.push(...journey.observations.map(({ action }) => action));
     const report = {
       comparisonVersion: scanComparisonVersion,
       scanStatus: journey.reached === "checkout" ? "COMPLETED" as const : "PARTIAL" as const,
-      executionMode: "DYNAMIC" as const, viewport, scenario: "public" as const, targetUrl, snapshots, interactions,
+      executionMode: "DYNAMIC" as const, viewport, purchasePath, scenario: "public" as const, targetUrl, snapshots, interactions,
       explorationBlocker: journey.blocker ?? null,
       networkPriceEvidence: journey.network,
       priceLedger: buildPriceLedger(snapshots, journey.network, firstPriceExposure),

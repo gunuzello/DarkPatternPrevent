@@ -49,6 +49,7 @@ export default async function DemoPage({ params, searchParams }: Props) {
           <button className="action" type="submit">장바구니에 담기</button>
         </form>
       )}
+      {product && <a className="action secondary" href={checkoutPath}>바로구매</a>}
       {stage === "cart" && <a className="action" href={checkoutPath}>주문서 보기</a>}
       {checkout && <p>데모 주문서입니다. 탐색은 여기에서 종료됩니다.</p>}
     </main>

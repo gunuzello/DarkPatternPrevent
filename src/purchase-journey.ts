@@ -5,6 +5,7 @@ import type { InteractionEvidence, NetworkPriceEvidence } from "./rules";
 const addCart = /^(?:장바구니(?:에\s*담기)?|카트에\s*담기|add\s+to\s+(?:cart|bag|basket))$/i;
 const openCart = /^(?:장바구니|카트|cart|bag|basket)(?:\s*보기)?$/i;
 const checkout = /^(?:주문서\s*보기|주문하기|구매하기|결제하기|checkout|proceed\s+to\s+checkout)$/i;
+const directBuy = /^(?:바로\s*구매|즉시\s*구매|buy\s+now|order\s+now)$/i;
 const priceKey = /(?:^|_)(?:total|subtotal|price|amount|shipping|delivery|fee|discount)(?:_|$)/i;
 
 function extractPrices(value: unknown, path = "$", depth = 0): { path: string; won: number }[] {
@@ -97,12 +98,14 @@ export type JourneyObservation = {
 export type JourneyBlocker = {
   stage: Stage;
   code: "ACTION_NOT_FOUND" | "ACTION_AMBIGUOUS" | "ACTION_FAILED";
-  action: "ADD_TO_CART" | "OPEN_CHECKOUT";
+  action: "ADD_TO_CART" | "OPEN_CHECKOUT" | "DIRECT_BUY";
   candidateCount: number;
 };
 
 /** Explore only as far as the checkout form. It never clicks a final-order action. */
-export async function explorePurchaseJourney(page: Page, onStage?: (stage: Stage) => Promise<void>) {
+export async function explorePurchaseJourney(
+  page: Page, onStage?: (stage: Stage) => Promise<void>, purchasePath: "CART" | "DIRECT" = "CART",
+) {
   let stage: Stage = "product";
   const observations: JourneyObservation[] = [];
   const network: NetworkPriceEvidence[] = [];
@@ -115,6 +118,26 @@ export async function explorePurchaseJourney(page: Page, onStage?: (stage: Stage
   });
   await onStage?.(stage);
   observations.push(...(await prepareRequiredOptions(page, stage)).map((action) => ({ stage, url: page.url(), action })));
+
+  if (purchasePath === "DIRECT") {
+    const direct = await actionCandidate(page, directBuy);
+    if (!direct.action) return {
+      observations, network, reached: stage,
+      blocker: { stage, code: direct.count ? "ACTION_AMBIGUOUS" : "ACTION_NOT_FOUND", action: "DIRECT_BUY", candidateCount: direct.count } satisfies JourneyBlocker,
+    };
+    const before = page.url();
+    try { await clickAndSettle(page, direct.action); } catch {
+      return { observations, network, reached: stage,
+        blocker: { stage, code: "ACTION_FAILED", action: "DIRECT_BUY", candidateCount: 1 } satisfies JourneyBlocker };
+    }
+    observations.push({ stage, url: before, action: {
+      id: "product:direct-buy", stage, kind: "NAVIGATION", capturedAt: new Date().toISOString(), outcome: "OBSERVED",
+    }});
+    stage = "checkout";
+    await onStage?.(stage);
+    await Promise.allSettled([...pending]);
+    return { observations, network, reached: stage };
+  }
 
   const add = await actionCandidate(page, addCart);
   if (!add.action) return {

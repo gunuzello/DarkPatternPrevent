@@ -12,6 +12,7 @@ export async function post(path: string, body: object) {
 export function scanRequest(
   shopId: string, baselineScanId?: string, profile: "CONTEST" | "DYNAMIC" = "CONTEST",
   viewport: "DESKTOP" | "MOBILE" = "DESKTOP",
+  purchasePath: "CART" | "DIRECT" = "CART",
 ) {
-  return { shopId, baselineScanId, profile, flows: ["PURCHASE"], productLimit: 1, viewport };
+  return { shopId, baselineScanId, profile, flows: ["PURCHASE"], productLimit: 1, viewport, purchasePath };
 }

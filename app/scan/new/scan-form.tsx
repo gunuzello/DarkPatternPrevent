@@ -10,6 +10,7 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [viewport, setViewport] = useState<"DESKTOP" | "MOBILE">("DESKTOP");
+  const [purchasePath, setPurchasePath] = useState<"CART" | "DIRECT">("CART");
   const [verification, setVerification] = useState<{ shopId: string; metaTag: string } | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -23,7 +24,7 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
         setPending(false);
         return;
       }
-      const scan = await post("scans", scanRequest(shop.shopId, undefined, "CONTEST", viewport));
+      const scan = await post("scans", scanRequest(shop.shopId, undefined, "CONTEST", viewport, purchasePath));
       router.push("/scan/" + scan.scanId);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "진단을 시작하지 못했습니다.");
@@ -37,7 +38,7 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
     setError("");
     try {
       await post("shops/" + verification.shopId + "/verify", {});
-      const scan = await post("scans", scanRequest(verification.shopId, undefined, "DYNAMIC", viewport));
+      const scan = await post("scans", scanRequest(verification.shopId, undefined, "DYNAMIC", viewport, purchasePath));
       router.push("/scan/" + scan.scanId);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "사이트 확인에 실패했습니다.");
@@ -70,6 +71,11 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
         <legend>화면 환경</legend>
         <label><input type="radio" name="viewport" checked={viewport === "DESKTOP"} onChange={() => setViewport("DESKTOP")} /> PC</label>{" "}
         <label><input type="radio" name="viewport" checked={viewport === "MOBILE"} onChange={() => setViewport("MOBILE")} /> 모바일</label>
+      </fieldset>
+      <fieldset>
+        <legend>구매 경로</legend>
+        <label><input type="radio" name="purchasePath" checked={purchasePath === "CART"} onChange={() => setPurchasePath("CART")} /> 장바구니 경유</label>{" "}
+        <label><input type="radio" name="purchasePath" checked={purchasePath === "DIRECT"} onChange={() => setPurchasePath("DIRECT")} /> 바로구매</label>
       </fieldset>
       <label><input type="checkbox" name="consent" required /> 이 대상에 대한 자동 진단 권한이 있으며 검사에 동의합니다.</label>
       <button type="submit" className="action" disabled={pending}>{pending ? "요청 중…" : "진단 시작"}</button>

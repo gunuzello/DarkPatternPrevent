@@ -43,6 +43,13 @@ test("정상 데모의 미선택 옵션과 사전 공개 비용은 탐지하지 
   expect(report.findings).toEqual([]);
 });
 
+test("위험 데모의 바로구매 경로는 장바구니를 선택 경로에서 제외한다", async ({ browser }, info) => {
+  const report = await scanDemo(browser, origin, "risky", info.outputPath("direct"), undefined, "DESKTOP", "DIRECT");
+  expect(report.purchasePath).toBe("DIRECT");
+  expect(report.snapshots.map(({ stage }) => stage)).toEqual(["product", "checkout"]);
+  expect(report.scanStatus).toBe("COMPLETED");
+});
+
 test("모바일 진단은 고정된 모바일 화면 조건을 보고서와 증거에 보존한다", async ({ browser }, info) => {
   const report = await scanDemo(browser, origin, "clean", info.outputPath("mobile"), undefined, "MOBILE");
   expect(report.viewport).toBe("MOBILE");
@@ -190,6 +197,24 @@ test("동적 탐색은 행동 후보가 여러 개면 임의로 클릭하지 않
     stage: "product", code: "ACTION_AMBIGUOUS", action: "ADD_TO_CART", candidateCount: 2,
   });
   expect(await page.evaluate(() => (window as typeof window & { clicked?: boolean }).clicked)).toBeUndefined();
+});
+
+test("바로구매 경로는 장바구니를 거치지 않고 주문서 직전에서 멈춘다", async ({ page }) => {
+  const { explorePurchaseJourney } = await import("../src/purchase-journey");
+  await page.route("https://direct.example/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const html = path === "/product"
+      ? `<button>장바구니에 담기</button><button onclick="location='/checkout'">바로구매</button>`
+      : `<h1>주문서</h1><button>주문 확정</button>`;
+    return route.fulfill({ contentType: "text/html; charset=utf-8", body: html });
+  });
+  await page.goto("https://direct.example/product");
+  const visited: string[] = [];
+  const result = await explorePurchaseJourney(page, async (stage) => { visited.push(stage); }, "DIRECT");
+  expect(result.reached).toBe("checkout");
+  expect(visited).toEqual(["product", "checkout"]);
+  expect(result.observations.map(({ action }) => action.id)).toContain("product:direct-buy");
+  expect(await page.locator("h1").innerText()).toBe("주문서");
 });
 
 test("사이트 확인 메타 태그는 속성 순서와 따옴표가 달라도 검증하고 위조 값은 거부한다", async () => {

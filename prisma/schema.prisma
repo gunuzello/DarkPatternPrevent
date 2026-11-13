@@ -22,6 +22,7 @@ model Scan {
   scenario        String
   executionMode   String    @default("STATIC")
   viewport        String    @default("DESKTOP")
+  purchasePath    String    @default("CART")
   targetUrl       String
   status          String
   createdAt       DateTime  @default(now())

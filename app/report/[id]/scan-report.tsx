@@ -14,13 +14,14 @@ type Report = {
   scanStatus: "COMPLETED" | "PARTIAL";
   executionMode: "DEMO" | "STATIC" | "DYNAMIC";
   viewport: "DESKTOP" | "MOBILE";
+  purchasePath: "CART" | "DIRECT";
   targetUrl: string;
-  coverage: Record<Stage, string>;
+  coverage: Record<Stage, "COVERED" | "BLOCKED" | "PENDING" | "SKIPPED">;
   summary: { suspected: number; reviewNeeded: number; notTested: number };
   comparison?: (ReturnType<typeof compareScans> & { baselineScanId: string }) | null;
   explorationBlocker?: {
     stage: Stage; code: "ACTION_NOT_FOUND" | "ACTION_AMBIGUOUS" | "ACTION_FAILED";
-    action: "ADD_TO_CART" | "OPEN_CHECKOUT"; candidateCount: number;
+    action: "ADD_TO_CART" | "OPEN_CHECKOUT" | "DIRECT_BUY"; candidateCount: number;
   } | null;
   findings: { id: number; type: keyof typeof legalRules; stage: Stage; reason: string }[];
 };
@@ -47,7 +48,7 @@ export function ScanReport({ id }: { id: string }) {
     <>
       <p className="eyebrow">{report.scanStatus === "COMPLETED" ? "진단 완료" : "부분 완료"}</p>
       <p className="target-url">{report.targetUrl}</p>
-      <p>화면 환경 · {report.viewport === "MOBILE" ? "모바일 390×844" : "PC 1440×1000"}</p>
+      <p>화면 환경 · {report.viewport === "MOBILE" ? "모바일 390×844" : "PC 1440×1000"} · {report.purchasePath === "DIRECT" ? "바로구매" : "장바구니 경유"}</p>
       <dl className="summary">
         <div><dt>위험 의심</dt><dd>{report.summary.suspected}</dd></div>
         <div><dt>확인 필요</dt><dd>{report.summary.reviewNeeded}</dd></div>
@@ -56,8 +57,8 @@ export function ScanReport({ id }: { id: string }) {
       <h2>검사 범위</h2>
       {report.executionMode === "STATIC" && <p>공개 상품의 초기 HTML을 검사했습니다. 장바구니·주문서의 추가 비용과 스크립트 실행 후 표시되는 항목은 미검사입니다.</p>}
       {report.executionMode === "DYNAMIC" && <p>확인된 쇼핑몰에서 별도 세션으로 동적 구매 흐름을 검사했습니다. 실제 주문 확정과 결제는 실행하지 않았습니다.</p>}
-      <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {report.coverage[stage] === "COVERED" ? (report.executionMode === "STATIC" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : "미검사"}</li>)}</ul>
-      {report.explorationBlocker && <p role="status">탐색 중단: {stageLabels[report.explorationBlocker.stage]}에서 {report.explorationBlocker.action === "ADD_TO_CART" ? "장바구니 담기" : "주문서 이동"} 동작을 {report.explorationBlocker.code === "ACTION_AMBIGUOUS" ? `하나로 확정하지 못했습니다(후보 ${report.explorationBlocker.candidateCount}개).` : report.explorationBlocker.code === "ACTION_FAILED" ? "실행했지만 화면 전환을 확인하지 못했습니다." : "찾지 못했습니다."}</p>}
+      <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {report.coverage[stage] === "COVERED" ? (report.executionMode === "STATIC" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : report.coverage[stage] === "SKIPPED" ? "선택 경로에 없음" : "미검사"}</li>)}</ul>
+      {report.explorationBlocker && <p role="status">탐색 중단: {stageLabels[report.explorationBlocker.stage]}에서 {report.explorationBlocker.action === "ADD_TO_CART" ? "장바구니 담기" : report.explorationBlocker.action === "DIRECT_BUY" ? "바로구매" : "주문서 이동"} 동작을 {report.explorationBlocker.code === "ACTION_AMBIGUOUS" ? `하나로 확정하지 못했습니다(후보 ${report.explorationBlocker.candidateCount}개).` : report.explorationBlocker.code === "ACTION_FAILED" ? "실행했지만 화면 전환을 확인하지 못했습니다." : "찾지 못했습니다."}</p>}
       <h2>발견된 항목</h2>
       {report.findings.length ? <ul>{report.findings.map((finding) => (
         <li key={finding.id}><Link href={"/report/" + id + "/" + finding.id}>{legalRules[finding.type].title}</Link> · {stageLabels[finding.stage]}</li>
@@ -89,7 +90,7 @@ export function ScanReport({ id }: { id: string }) {
         setPending(true);
         try {
           const next = await post("scans", scanRequest(
-            report.shopId, id, report.executionMode === "DYNAMIC" ? "DYNAMIC" : "CONTEST", report.viewport,
+            report.shopId, id, report.executionMode === "DYNAMIC" ? "DYNAMIC" : "CONTEST", report.viewport, report.purchasePath,
           ));
           router.push("/scan/" + next.scanId);
         } catch {

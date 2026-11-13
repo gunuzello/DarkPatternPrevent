@@ -92,6 +92,7 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
 export async function scanDemo(
   browser: Browser, origin: string, scenario: Scenario, directory: string,
   onStage?: (snapshot: Snapshot) => Promise<void>, viewport: "DESKTOP" | "MOBILE" = "DESKTOP",
+  purchasePath: "CART" | "DIRECT" = "CART",
 ) {
   const base = new URL(origin);
   if (base.protocol !== "http:" || base.hostname !== "127.0.0.1" || base.href !== base.origin + "/") {
@@ -100,7 +101,8 @@ export async function scanDemo(
 
   const path = "/demo/" + scenario + "/";
   const targetUrl = base.origin + path + "product";
-  const routes = new Set<string>(stages.map((stage) => path + stage));
+  const selectedStages: Stage[] = purchasePath === "DIRECT" ? ["product", "checkout"] : [...stages];
+  const routes = new Set<string>(selectedStages.map((stage) => path + stage));
   await mkdir(directory, { recursive: true });
   const mobile = viewport === "MOBILE";
   const context = await browser.newContext({
@@ -133,7 +135,7 @@ export async function scanDemo(
     page.setDefaultTimeout(10_000);
     const snapshots: Snapshot[] = [];
     const interactions = [];
-    for (const stage of stages) {
+    for (const stage of selectedStages) {
       let snapshot: Snapshot;
       try {
         if (stage === "product") {
@@ -142,7 +144,7 @@ export async function scanDemo(
         } else if (stage === "cart") {
           await page.getByRole("button", { name: "장바구니에 담기", exact: true }).click();
         } else {
-          await page.getByRole("link", { name: "주문서 보기", exact: true }).click();
+          await page.getByRole("link", { name: purchasePath === "DIRECT" ? "바로구매" : "주문서 보기", exact: true }).click();
         }
         snapshot = await capture(page, stage, directory, page.locator('main[data-stage="' + stage + '"]'));
         if (stage === "product") interactions.push(...await observePaidOptionChanges(page, page.locator('main[data-stage="product"]'), stage));
@@ -155,9 +157,10 @@ export async function scanDemo(
     }
     const report = {
       comparisonVersion: scanComparisonVersion,
-      scanStatus: snapshots.length === stages.length ? "COMPLETED" : "PARTIAL",
+      scanStatus: snapshots.length === selectedStages.length ? "COMPLETED" : "PARTIAL",
       executionMode: "DEMO" as const,
       viewport,
+      purchasePath,
       scenario,
       targetUrl,
       snapshots,

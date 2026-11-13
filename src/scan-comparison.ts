@@ -11,6 +11,7 @@ type ComparableReport = {
   scenario: string;
   executionMode?: string;
   viewport?: string;
+  purchasePath?: string;
   snapshots: { stage: Stage; url: string }[];
   findings: Signal[];
 };
@@ -23,7 +24,7 @@ export function compareScans(before: ComparableReport, after: ComparableReport) 
     return { status: "UNAVAILABLE", reason: "두 보고서의 비교 형식이 다릅니다." } as const;
   }
   if (before.targetUrl !== after.targetUrl || before.scenario !== after.scenario ||
-      before.executionMode !== after.executionMode || before.viewport !== after.viewport ||
+      before.executionMode !== after.executionMode || before.viewport !== after.viewport || before.purchasePath !== after.purchasePath ||
       !before.snapshots.length || before.snapshots.length !== after.snapshots.length ||
       before.snapshots.some(({ stage, url }, index) =>
         stage !== after.snapshots[index].stage || url !== after.snapshots[index].url)) {
