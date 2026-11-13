@@ -11,6 +11,8 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
   const [error, setError] = useState("");
   const [viewport, setViewport] = useState<"DESKTOP" | "MOBILE">("DESKTOP");
   const [purchasePath, setPurchasePath] = useState<"CART" | "DIRECT">("CART");
+  const [dynamic, setDynamic] = useState(false);
+  const [verification, setVerification] = useState<{ shopId: string; metaTag: string; filePath: string; dnsRecord: string } | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -18,10 +20,30 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
     setError("");
     try {
       const shop = await post("shops", { url: url.trim(), consent: new FormData(event.currentTarget).get("consent") === "on" });
+      if (dynamic) {
+        if (!shop.verification) throw new Error("이 주소는 동적 검사 확인 정보를 발급할 수 없습니다.");
+        setVerification({ shopId: shop.shopId, ...shop.verification });
+        setPending(false);
+        return;
+      }
       const scan = await post("scans", scanRequest(shop.shopId, undefined, "CONTEST", viewport, purchasePath));
       router.push("/scan/" + scan.scanId);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "진단을 시작하지 못했습니다.");
+      setPending(false);
+    }
+  }
+
+  async function verifyAndScan() {
+    if (!verification) return;
+    setPending(true);
+    setError("");
+    try {
+      await post(`shops/${verification.shopId}/verify`, {});
+      const scan = await post("scans", scanRequest(verification.shopId, undefined, "DYNAMIC", viewport, purchasePath));
+      router.push("/scan/" + scan.scanId);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "소유 확인에 실패했습니다.");
       setPending(false);
     }
   }
@@ -46,9 +68,22 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
         <label><input type="radio" name="purchasePath" checked={purchasePath === "CART"} onChange={() => setPurchasePath("CART")} /> 장바구니 경유</label>{" "}
         <label><input type="radio" name="purchasePath" checked={purchasePath === "DIRECT"} onChange={() => setPurchasePath("DIRECT")} /> 바로구매</label>
       </fieldset>
+      <button type="button" className="action secondary" aria-pressed={dynamic} onClick={() => setDynamic((value) => !value)}>
+        {dynamic ? "동적 구매 흐름 검사 선택됨" : "소유 확인 후 동적 구매 흐름까지 검사"}
+      </button>
       <label><input type="checkbox" name="consent" required /> 이 대상에 대한 자동 진단 권한이 있으며 검사에 동의합니다.</label>
       <button type="submit" className="action" disabled={pending}>{pending ? "요청 중…" : "진단 시작"}</button>
       {error && <p role="alert">{error}</p>}
+      {verification && <section aria-live="polite">
+        <h2>상점 소유 확인</h2>
+        <p>아래 세 방법 중 하나를 완료한 뒤 확인 버튼을 눌러 주세요. 인증 토큰은 저장하지 않습니다.</p>
+        <ol>
+          <li>메타 태그: <code>{verification.metaTag}</code></li>
+          <li>파일 업로드: <code>{verification.filePath}</code>에 토큰 값 업로드</li>
+          <li>DNS TXT: <code>{verification.dnsRecord}</code></li>
+        </ol>
+        <button type="button" className="action" onClick={verifyAndScan} disabled={pending}>{pending ? "확인 중…" : "확인 후 동적 진단 시작"}</button>
+      </section>}
     </form>
   );
 }
