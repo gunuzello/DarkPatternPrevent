@@ -41,6 +41,11 @@ test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async
   expect(submitted.status()).toBe(202);
   const scan = await submitted.json();
   expect(scan.status).toBe("QUEUED");
+  const duplicate = await request.post(api + "scans", { data: {
+    shopId: shop.shopId, profile: "CONTEST", flows: ["PURCHASE"], productLimit: 1, viewport: "DESKTOP",
+  } });
+  expect(duplicate.status()).toBe(202);
+  expect(await duplicate.json()).toMatchObject({ scanId: scan.scanId, deduplicated: true });
   expect((await request.post(api + "scans/" + scan.scanId + "/cancel", { data: {} })).status()).toBe(200);
   const status = await (await request.get(api + "scans/" + scan.scanId)).json();
   expect(status.status).toBe("CANCELLED");

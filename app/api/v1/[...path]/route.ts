@@ -103,6 +103,18 @@ export async function POST(request: NextRequest, context: Context) {
       });
       if (!baseline) return notFound();
     }
+    if (baselineScanId === undefined) {
+      const existing = await db().scan.findFirst({
+        where: {
+          shopId: shop.id, targetUrl: target.url, scenario: target.scenario,
+          executionMode: body.profile === "DYNAMIC" ? "DYNAMIC" : "STATIC",
+          viewport: body.viewport, purchasePath, status: { in: ["QUEUED", "RUNNING"] },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, status: true, createdAt: true },
+      });
+      if (existing) return Response.json({ scanId: existing.id, status: existing.status, createdAt: existing.createdAt, deduplicated: true }, { status: 202 });
+    }
     const scan = await db().scan.create({
       data: {
         id: randomUUID(), shopId: shop.id, targetUrl: target.url, scenario: target.scenario,
