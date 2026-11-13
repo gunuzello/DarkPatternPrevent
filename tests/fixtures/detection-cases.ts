@@ -11,6 +11,7 @@ type DetectionCase = {
 
 const preselection: ExpectedFinding = { type: "PRESELECTION", stage: "product" };
 const drip = (stage: Stage): ExpectedFinding => ({ type: "DRIP_PRICING", stage });
+const urgency: ExpectedFinding = { type: "URGENCY_SCARCITY", stage: "product" };
 
 const checkbox = (label: string, attributes: string) =>
   `<label><input type="checkbox" ${attributes}> ${label}</label>`;
@@ -80,4 +81,8 @@ export const textValidationCases = [
   priceCase(24, "조건이 붙은 비용 안내", { checkout: "<p>필수 처리비 3,000원 (도서산간 지역에 한함)</p>" }),
   priceCase(25, "문구의 예시 금액", { checkout: "<p>예시: 필수 처리비 3,000원</p>" }),
   priceCase(26, "같은 화면에 보이는 구조화 비용과 텍스트 중복", { checkout: fee("handling", 3000, "필수 처리비") + "<p>필수 처리비 3,000원</p>" }, [drip("checkout")]),
+  priceCase(27, "긴급성과 희소성 문구가 함께 표시", { product: "<p>오늘만 마감 임박</p><p>현재 4명 동시 접속</p>" }, [urgency]),
+  priceCase(28, "긴급성만 표시", { product: "<p>오늘만 특별 할인</p>" }),
+  priceCase(29, "희소성만 표시", { product: "<p>마지막 재고 2개</p>" }),
+  priceCase(30, "영문 긴급성과 희소성 문구", { product: "<p>Limited time offer</p><p>Only 2 left</p>" }, [urgency]),
 ] satisfies DetectionCase[];

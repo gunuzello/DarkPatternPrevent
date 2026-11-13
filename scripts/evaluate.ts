@@ -19,7 +19,7 @@ type CaseResult = {
   durationMs: number;
 };
 
-const rules = ["PRESELECTION", "DRIP_PRICING"] as const;
+const rules = ["PRESELECTION", "DRIP_PRICING", "URGENCY_SCARCITY"] as const;
 const rate = (numerator: number, denominator: number) => denominator ? numerator / denominator : null;
 const keys = (findings: ExpectedFinding[]) => findings.map(({ type, stage }) => type + ":" + stage).sort();
 const stableObservation = (scan: Awaited<ReturnType<typeof scanDemo>>) => JSON.stringify({
