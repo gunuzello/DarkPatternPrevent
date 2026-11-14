@@ -165,6 +165,7 @@ test("외부 첫 화면을 읽지 못하면 진단 실패 대신 부분 완료�
   expect(report.scanStatus).toBe("PARTIAL");
   expect(report.snapshots).toEqual([]);
   expect(report.collectionFailure).toContain("첫 화면");
+  expect(report.collectionFailureCode).toBe("FETCH_FAILED");
   expect(JSON.parse(await readFile(join(info.outputPath("unavailable"), "report.json"), "utf8"))).toEqual(report);
 });
 

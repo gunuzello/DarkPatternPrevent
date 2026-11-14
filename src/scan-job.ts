@@ -55,6 +55,7 @@ export async function runScanJob(id: string, targetUrl: string) {
           scenario: "public" as const, targetUrl, snapshots: [], interactions: [],
           explorationBlocker: null, networkPriceEvidence: [], priceLedger: buildPriceLedger([]), findings: [],
           collectionFailure: error instanceof Error ? error.message : "동적 구매 흐름을 수집하지 못했습니다.",
+          collectionFailureCode: "DYNAMIC_JOURNEY_FAILED" as const,
         };
         await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
       }

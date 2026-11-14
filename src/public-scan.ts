@@ -12,6 +12,11 @@ import { startSafeBrowserProxy } from "./safe-browser-proxy";
 import { collectReviewCandidates } from "./review-candidates";
 import { structuredProductLinks } from "./structured-product-links";
 
+export type CollectionFailureCode =
+  | "FETCH_FAILED"
+  | "PRODUCT_NOT_FOUND"
+  | "DYNAMIC_RENDER_FAILED";
+
 export const productPath = /\/(?:products?\/(?!(?:list|search)\.(?:html|php)(?:$|\/)|category\/)[^/]+|goods\/[^/]+|items?\/[^/]+|shopdetail(?:\/[^/]+|\.html)|catalogue\/[^/]+_\d+\/index\.html)/i;
 const addToCart = /^(?:장바구니(?:에 담기)?|add to (?:cart|bag|basket))$/i;
 const buyNow = /^(?:바로 구매|구매하기|buy now)$/i;
@@ -58,12 +63,12 @@ export async function scanPublicShop(
       `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'">` + html,
       { waitUntil: "domcontentloaded" },
     );
-    const partial = async (reason: string) => {
+    const partial = async (reason: string, code: CollectionFailureCode) => {
       const report = {
         comparisonVersion: scanComparisonVersion,
         scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport, purchasePath,
         scenario: "public" as const, targetUrl, snapshots: [], priceLedger: buildPriceLedger([]), findings: [], reviewCandidates: [],
-        collectionFailure: reason,
+        collectionFailure: reason, collectionFailureCode: code,
       };
       await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
       return report;
@@ -72,7 +77,7 @@ export async function scanPublicShop(
     try {
       document = await load(targetUrl);
     } catch {
-      return partial("첫 화면을 불러오지 못했습니다. 공개 HTTPS 상품 URL과 접근 가능 여부를 확인해 주세요.");
+      return partial("첫 화면을 불러오지 못했습니다. 공개 HTTPS 상품 URL과 접근 가능 여부를 확인해 주세요.", "FETCH_FAILED");
     }
     await render(document.html);
     let firstPriceExposure: FirstPriceExposure | undefined;
@@ -129,7 +134,7 @@ export async function scanPublicShop(
         // fallback; this is still a public, non-interactive inspection and does
         // not submit forms or enter a purchase flow.
         const renderedProxy = await startSafeBrowserProxy().catch(() => null);
-        if (!renderedProxy) return partial("동적 화면 폴백을 위한 안전 연결을 시작하지 못했습니다. 공개 HTML 또는 상품 상세 URL을 확인해 주세요.");
+        if (!renderedProxy) return partial("동적 화면 폴백을 위한 안전 연결을 시작하지 못했습니다. 공개 HTML 또는 상품 상세 URL을 확인해 주세요.", "DYNAMIC_RENDER_FAILED");
         const rendered = await browser.newContext({
           proxy: { server: renderedProxy.server }, javaScriptEnabled: true, serviceWorkers: "block", acceptDownloads: false,
           viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 },
@@ -168,7 +173,7 @@ export async function scanPublicShop(
               comparisonVersion: scanComparisonVersion,
               scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport, purchasePath,
               scenario: "public" as const, targetUrl, snapshots: [product],
-              priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]), reviewCandidates: collectReviewCandidates([product]), collectionFailure: null,
+              priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]), reviewCandidates: collectReviewCandidates([product]), collectionFailure: null, collectionFailureCode: null,
             };
             await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
             return report;
@@ -179,7 +184,7 @@ export async function scanPublicShop(
           await Promise.race([renderedProxy.close(), new Promise<void>((resolve) => setTimeout(resolve, 2_000))]);
         }
       }
-      if (!found) return partial("상품 상세 화면을 찾지 못했습니다. 상품 상세 URL을 직접 입력해 주세요.");
+      if (!found) return partial("상품 상세 화면을 찾지 못했습니다. 상품 상세 URL을 직접 입력해 주세요.", "PRODUCT_NOT_FOUND");
     }
 
     await page.locator("body").waitFor({ state: "visible" });
@@ -189,7 +194,7 @@ export async function scanPublicShop(
       comparisonVersion: scanComparisonVersion,
       scanStatus: "PARTIAL" as const, executionMode: "STATIC" as const, viewport, purchasePath,
       scenario: "public" as const, targetUrl,
-      snapshots: [product], priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]), reviewCandidates: collectReviewCandidates([product]), collectionFailure: null,
+      snapshots: [product], priceLedger: buildPriceLedger([product], [], firstPriceExposure), findings: detect([product]), reviewCandidates: collectReviewCandidates([product]), collectionFailure: null, collectionFailureCode: null,
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
     return report;

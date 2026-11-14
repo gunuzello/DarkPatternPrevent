@@ -16,6 +16,7 @@ type Report = {
   viewport: "DESKTOP" | "MOBILE";
   purchasePath: "CART" | "DIRECT";
   collectionFailure?: string;
+  collectionFailureCode?: string;
   durationMs: number | null;
   targetUrl: string;
   coverage: Record<Stage, "COVERED" | "BLOCKED" | "PENDING" | "SKIPPED">;
@@ -63,7 +64,7 @@ export function ScanReport({ id }: { id: string }) {
       <h2>검사 범위</h2>
       {report.executionMode === "STATIC" && <p>공개 상품 화면(서버 HTML 또는 안전한 같은 출처 렌더링)을 검사했습니다. 장바구니·주문서의 추가 비용과 구매 행동 후 표시되는 항목은 미검사입니다.</p>}
       {report.executionMode === "DYNAMIC" && <p>확인된 쇼핑몰에서 별도 세션으로 동적 구매 흐름을 검사했습니다. 실제 주문 확정과 결제는 실행하지 않았습니다.</p>}
-      {report.collectionFailure && <p role="status">수집 안내: {report.collectionFailure}</p>}
+      {report.collectionFailure && <p role="status">수집 안내{report.collectionFailureCode ? ` [${report.collectionFailureCode}]` : ""}: {report.collectionFailure}</p>}
       <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {report.coverage[stage] === "COVERED" ? (report.executionMode === "STATIC" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : report.coverage[stage] === "SKIPPED" ? "선택 경로에 없음" : "미검사"}</li>)}</ul>
       {report.explorationBlocker && <p role="status">탐색 중단: {stageLabels[report.explorationBlocker.stage]}에서 {report.explorationBlocker.action === "ADD_TO_CART" ? "장바구니 담기" : report.explorationBlocker.action === "DIRECT_BUY" ? "바로구매" : "주문서 이동"} 동작을 {report.explorationBlocker.code === "LOGIN_REQUIRED" ? "로그인 화면으로 판단했습니다. 승인된 테스트 계정 또는 로그인 세션이 필요합니다." : report.explorationBlocker.code === "ACTION_AMBIGUOUS" ? `하나로 확정하지 못했습니다(후보 ${report.explorationBlocker.candidateCount}개).` : report.explorationBlocker.code === "ACTION_FAILED" ? "실행했지만 화면 전환을 확인하지 못했습니다." : "찾지 못했습니다."}</p>}
       <h2>발견된 항목</h2>

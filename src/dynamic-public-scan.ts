@@ -154,7 +154,7 @@ export async function scanDynamicPublicShop(
       networkPriceEvidence: journey.network,
       priceLedger: buildPriceLedger(snapshots, journey.network, firstPriceExposure),
       reviewCandidates: collectReviewCandidates(snapshots),
-      findings: detect(snapshots, firstPriceExposure?.feeMentions),
+      findings: detect(snapshots, firstPriceExposure?.feeMentions), collectionFailure: null, collectionFailureCode: null,
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
     return report;
