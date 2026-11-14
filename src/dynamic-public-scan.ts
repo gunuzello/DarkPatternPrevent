@@ -157,6 +157,21 @@ export async function scanDynamicPublicShop(
         }
       }
       if (!found) {
+        // Some modern React shops render product cards as clickable divs and
+        // expose no product href. Select one card with a visible price, then
+        // verify that the click actually opened a product surface.
+        const cards = page.locator('article:visible, li:visible, [class*="cursor-pointer"]:visible').filter({ hasText: /(?:₩|\d[\d,]*\s*원)/ });
+        for (let index = 0; index < Math.min(await cards.count(), 6); index++) {
+          const card = cards.nth(index);
+          if (!await card.isVisible().catch(() => false)) continue;
+          const before = page.url();
+          await card.click({ position: { x: 20, y: 20 }, timeout: 3_000 }).catch(() => undefined);
+          await page.waitForTimeout(300);
+          if (page.url() !== before && await isProductPage(page, page.url())) { found = true; break; }
+          if (page.url() !== before) await page.goto(listingUrl, { waitUntil: "domcontentloaded", timeout: 5_000 }).catch(() => undefined);
+        }
+      }
+      if (!found) {
         // A client-rendered storefront may expose product cards as buttons with
         // no detail URL. Preserve the rendered listing as the product-stage
         // evidence instead of failing the whole scan; journey exploration will
