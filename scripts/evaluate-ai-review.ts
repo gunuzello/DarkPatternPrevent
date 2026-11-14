@@ -17,6 +17,18 @@ async function main() {
   }));
   const unknown = lines.filter((row) => row.prediction?.label === "INSUFFICIENT_EVIDENCE").length;
   const durations = lines.map((row) => row.durationMs).filter((value): value is number => typeof value === "number");
-  console.log(JSON.stringify({ path, rows: lines.length, labeled: labeled.length, accuracy: labeled.length ? correct / labeled.length : null, averageConfidence: confidence, unknownRate: lines.length ? unknown / lines.length : null, perLabel, estimatedCostUsd: cost, averageDurationMs: durations.length ? durations.reduce((sum, value) => sum + value, 0) / durations.length : null }));
+  console.log(JSON.stringify({
+    path,
+    rows: lines.length,
+    labeled: labeled.length,
+    readyForModelSelection: labeled.length > 0,
+    nextStep: labeled.length > 0 ? null : "운영자 라벨이 있는 AI 검토 레코드를 추가한 뒤 다시 평가하세요.",
+    accuracy: labeled.length ? correct / labeled.length : null,
+    averageConfidence: confidence,
+    unknownRate: lines.length ? unknown / lines.length : null,
+    perLabel,
+    estimatedCostUsd: cost,
+    averageDurationMs: durations.length ? durations.reduce((sum, value) => sum + value, 0) / durations.length : null,
+  }));
 }
 void main().catch((error) => { console.error(error); process.exitCode = 1; });
