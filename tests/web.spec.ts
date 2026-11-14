@@ -65,7 +65,7 @@ test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진�
   });
   await page.goto(origin);
   await page.getByRole("link", { name: "쇼핑몰 진단 시작" }).click();
-  await page.getByRole("button", { name: "위험 데모 URL 사용" }).click();
+  await page.getByRole("button", { name: "위험 예시 URL 채우기" }).click();
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "진단 시작" }).click();
   await page.getByRole("link", { name: "진단 결과 보기" }).click({ timeout: 20_000 });
