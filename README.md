@@ -23,6 +23,7 @@ npm run worker
 운영 환경에서는 `RETENTION_DAYS`(기본 30일)를 설정하고 `npm run cleanup:retention`을 주기적으로 실행하세요. 종료된 진단의 데이터베이스 레코드와 증거 이미지를 함께 삭제하며, 진행 중인 진단은 삭제하지 않습니다.
 
 SQLite와 증거를 함께 백업하려면 워커와 웹 프로세스를 중지한 유지보수 창에서 `BACKUP_DIR=/secure/backups npm run backup`을 실행하세요. 백업 디렉터리에는 데이터베이스 파일과 `scan-results`가 같은 시각 스냅샷으로 저장됩니다. 복구는 새 운영 디렉터리에 두 항목을 함께 복원한 뒤 `DATABASE_URL`과 `SCAN_RESULTS_DIR`을 해당 경로로 지정하고 마이그레이션 상태와 보고서 다운로드를 확인해야 합니다.
+`BACKUP_DIR`은 `SCAN_RESULTS_DIR` 바깥에 지정해야 하며, 내부 경로는 자기 자신을 복사할 수 있어 거부됩니다.
 
 백업 스냅샷은 기존 경로를 덮어쓰지 않는 `npm run restore -- /secure/backups/<timestamp> /srv/baromi-restored` 명령으로 복원할 수 있습니다. 대상 디렉터리가 이미 있으면 명령이 중단됩니다.
 
