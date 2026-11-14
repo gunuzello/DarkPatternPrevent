@@ -29,6 +29,7 @@ test("위험 데모에서 두 규칙과 증거를 기록한다", async ({ browse
   expect(report.priceLedger.stages[2].fees.some((fee) => fee.won === 3000 && fee.required)).toBe(true);
 
   expect(report.snapshots.map(({ stage }) => stage)).toEqual(["product", "cart", "checkout"]);
+  expect(report.snapshots.every(({ surfaceSignals }) => Array.isArray(surfaceSignals))).toBe(true);
   expect(report.interactions).toEqual(expect.arrayContaining([
     expect.objectContaining({ kind: "INITIAL_STATE", stage: "product" }),
     expect.objectContaining({ kind: "PAID_OPTION_TOGGLE", controlLabel: expect.stringContaining("선물 포장") }),
@@ -234,13 +235,19 @@ test("재진단은 같은 항목의 변화만 비교하고 누락된 단계는 �
 
 test("동적 탐색은 주문서까지만 이동하고 가격 API의 비식별 숫자만 수집한다", async ({ page }) => {
   const { explorePurchaseJourney } = await import("../src/purchase-journey");
-  await page.route("https://journey.example/**", async (route) => {
+  await page.context().route("https://journey.example/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/cart") return route.fulfill({
       contentType: "application/json", body: JSON.stringify({ cart: { total: 21000 }, email: "private@example.com" }),
     });
+    if (path === "/login") return route.fulfill({
+      contentType: "text/html; charset=utf-8", body: "<h1>로그인</h1><form><input type='email' /></form>",
+    });
+    if (path === "/membership") return route.fulfill({
+      contentType: "text/html; charset=utf-8", body: "<h1>멤버십</h1><p>무료 체험 후 자동 갱신</p>",
+    });
     const html = path === "/product"
-      ? `<select required><option value="">선택해 주세요</option><option value="regular">기본형</option></select><button onclick="fetch('/api/cart').then(()=>setTimeout(()=>location='/cart',100))">장바구니에 담기</button>`
+      ? `<a href="/login">로그인</a><a href="/membership">멤버십</a><select required><option value="">선택해 주세요</option><option value="regular">기본형</option></select><button onclick="fetch('/api/cart').then(()=>setTimeout(()=>location='/cart',100))">장바구니에 담기</button>`
       : path === "/cart"
         ? `<a href="/checkout">주문하기</a>`
         : `<h1>주문서</h1><button onclick="window.ordered=true">주문 확정</button>`;
@@ -256,6 +263,13 @@ test("동적 탐색은 주문서까지만 이동하고 가격 API의 비식별 �
   expect(await page.evaluate(() => (window as typeof window & { ordered?: boolean }).ordered)).toBeUndefined();
   expect(result.network.flatMap(({ values }) => values)).toContainEqual({ path: "$.cart.total", won: 21000 });
   expect(JSON.stringify(result.network)).not.toContain("private@example.com");
+  expect(result.surfaceDestinations).toEqual(expect.arrayContaining([
+    expect.objectContaining({ kind: "AUTH", href: "https://journey.example/login" }),
+    expect.objectContaining({ kind: "SUBSCRIPTION", href: "https://journey.example/membership" }),
+  ]));
+  expect(result.surfaceObservations).toEqual(expect.arrayContaining([
+    expect.objectContaining({ kind: "AUTH", outcome: "OBSERVED", status: 200 }),
+  ]));
 });
 
 test("동적 탐색은 행동 후보가 여러 개면 임의로 클릭하지 않고 이유를 기록한다", async ({ page }) => {
@@ -382,6 +396,37 @@ test("긴급성·희소성 문구가 함께 보이면 사실 판단이 아닌 �
     priceLines: [], textLines: ["선착순 마감 임박", "마지막 재고 2개"], options: [], fees: [],
   };
   expect(detect([product]).map(({ type }) => type)).toEqual(["URGENCY_SCARCITY"]);
+});
+
+test("확장 가이드라인 문구는 단계별 검토 신호와 증거 ID를 남긴다", async () => {
+  const product = {
+    evidenceId: "evidence:product", stage: "product" as const, url: "https://shop.example.com/", screenshot: "product.png",
+    priceLines: ["최저가 19,900원", "정가 29,000원"],
+    textLines: ["무료 체험 후 자동 갱신", "혜택을 포기하고 닫기", "광고 포함 추천 상품", "로그인 후 구매 가능"], options: [], fees: [],
+  };
+  const findings = detect([product]);
+  expect(findings.map(({ type }) => type)).toEqual(expect.arrayContaining([
+    "HIDDEN_INFO", "FALSE_DISCOUNT", "DISGUISED_AD", "CONFIRM_SHAMING", "FORCED_ACTION", "HIDDEN_SUBSCRIPTION",
+  ]));
+  expect(findings.every(({ evidenceIds }) => evidenceIds?.includes("evidence:product"))).toBe(true);
+});
+
+test("공정위 13개 유형의 추가 신호를 모두 같은 증거에 연결한다", async () => {
+  const { detect } = await import("../src/rules");
+  const product = {
+    evidenceId: "evidence:all-types", stage: "product" as const, url: "https://shop.example.com/", screenshot: "product.png",
+    priceLines: [], textLines: [
+      "추천 상품 · 구매자 추천", "함께 담기 자동으로 추가", "최저가 상품 품절 임박",
+      "아니요, 혜택을 받지 않겠습니다", "구매 버튼은 크게, 거절은 작게", "회원 탈퇴",
+      "개당 가격 · 총 비용",
+    ], options: [], fees: [],
+  };
+  const types = detect([product]).map(({ type }) => type);
+  expect(types).toEqual(expect.arrayContaining([
+    "SNEAKY_CART_ADD", "FALSE_RECOMMENDATION", "BAIT_SELLING", "TRICK_QUESTION",
+    "MISDIRECTED_HIERARCHY", "CANCELLATION_OBSTRUCTION", "PRICE_COMPARISON_OBSTRUCTION",
+  ]));
+  expect(detect([product]).filter(({ type }) => types.includes(type)).every(({ evidenceIds }) => evidenceIds?.includes("evidence:all-types"))).toBe(true);
 });
 
 test("모호한 비용 문구는 자동 판정 대신 제한된 검토 후보로 보존한다", async () => {

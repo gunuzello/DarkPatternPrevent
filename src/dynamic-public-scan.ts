@@ -9,9 +9,10 @@ import { capture } from "./scan";
 import { scanComparisonVersion } from "./scan-comparison";
 import { detect, type InteractionEvidence, type Snapshot } from "./rules";
 import { feeMentionsFromText } from "./price-text";
-import { collectReviewCandidates } from "./review-candidates";
+import { collectReviewCandidates, collectSurfaceReviewCandidates } from "./review-candidates";
 import { structuredProductLinks } from "./structured-product-links";
 import type { TestCredentials } from "./credential-vault";
+import { classifyDynamicFailure } from "./scan-failure";
 
 const rootHost = (hostname: string) => hostname.replace(/^www\./, "");
 
@@ -190,7 +191,7 @@ export async function scanDynamicPublicShop(
       new Promise<never>((_, reject) => { journeyTimer = setTimeout(() => reject(new Error(`동적 구매 흐름 시간 초과(${journeyTimeoutMs}ms)`)), journeyTimeoutMs); }),
     ]).catch((error: unknown) => {
       journeyFailure = error instanceof Error ? error.message : "동적 구매 흐름이 제한 시간 안에 끝나지 않았습니다.";
-      return { observations: [], network: [], reached: "product" as const, blocker: { stage: "product" as const, code: "ACTION_FAILED" as const, action: purchasePath === "DIRECT" ? "DIRECT_BUY" as const : "ADD_TO_CART" as const, candidateCount: 0 } };
+      return { observations: [], network: [], surfaceDestinations: [], surfaceObservations: [], reached: "product" as const, blocker: { stage: "product" as const, code: "ACTION_FAILED" as const, action: purchasePath === "DIRECT" ? "DIRECT_BUY" as const : "ADD_TO_CART" as const, candidateCount: 0 } };
     });
     if (journeyTimer) clearTimeout(journeyTimer);
     interactions.push(...journey.observations.map(({ action }) => action));
@@ -199,10 +200,12 @@ export async function scanDynamicPublicShop(
       scanStatus: journey.reached === "checkout" ? "COMPLETED" as const : "PARTIAL" as const,
       executionMode: "DYNAMIC" as const, viewport, purchasePath, scenario: "public" as const, targetUrl, snapshots, interactions,
       explorationBlocker: journey.blocker ?? null,
+      surfaceDestinations: journey.surfaceDestinations,
+      surfaceObservations: journey.surfaceObservations,
       networkPriceEvidence: journey.network,
       priceLedger: buildPriceLedger(snapshots, journey.network, firstPriceExposure),
-      reviewCandidates: collectReviewCandidates(snapshots),
-      findings: detect(snapshots, firstPriceExposure?.feeMentions), collectionFailure: journeyFailure, collectionFailureCode: journeyFailure ? "DYNAMIC_JOURNEY_FAILED" as const : null,
+      reviewCandidates: [...collectReviewCandidates(snapshots), ...collectSurfaceReviewCandidates(journey.surfaceObservations)],
+      findings: detect(snapshots, firstPriceExposure?.feeMentions), collectionFailure: journeyFailure, collectionFailureCode: journeyFailure ? classifyDynamicFailure(journeyFailure) : null,
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
     return report;

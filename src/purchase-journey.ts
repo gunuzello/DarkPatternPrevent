@@ -114,6 +114,61 @@ async function isCheckoutLike(page: Page) {
   return hasCheckoutCopy && hasCustomerForm;
 }
 
+async function discoverSurfaceDestinations(page: Page) {
+  const origin = new URL(page.url()).origin;
+  return page.locator("a[href]").evaluateAll((anchors, expectedOrigin) => anchors.flatMap((anchor) => {
+    const text = (anchor.textContent ?? anchor.getAttribute("aria-label") ?? "").replace(/\s+/g, " ").trim();
+    const raw = anchor.getAttribute("href") ?? "";
+    if (!text || !raw) return [];
+    try {
+      const parsed = new URL(raw, window.location.href);
+      if (parsed.origin !== expectedOrigin || !/^https?:$/.test(parsed.protocol)) return [];
+      parsed.hash = "";
+      const kind = /로그인|회원가입|sign\s*in|log\s*in|account/i.test(text) ? "AUTH"
+        : /구독|멤버십|정기\s*결제|자동\s*(?:갱신|연장)|subscription|membership/i.test(text) ? "SUBSCRIPTION"
+        : /해지|탈퇴|환불|구독\s*취소|cancel|unsubscribe/i.test(text) ? "CANCELLATION" : null;
+      return kind ? [{ kind, text, href: parsed.href }] : [];
+    } catch { return []; }
+  }), origin);
+}
+
+export type SurfaceObservation = {
+  evidenceId: string;
+  kind: "AUTH" | "SUBSCRIPTION" | "CANCELLATION";
+  url: string;
+  status: number | null;
+  title: string;
+  text: string;
+  outcome: "OBSERVED" | "FETCH_FAILED" | "CROSS_ORIGIN";
+};
+
+async function inspectSurfaceDestinations(page: Page, destinations: { kind: SurfaceObservation["kind"]; href: string }[]): Promise<SurfaceObservation[]> {
+  const origin = new URL(page.url()).origin;
+  const observations: SurfaceObservation[] = [];
+  for (const destination of destinations.slice(0, 6)) {
+    if (new URL(destination.href).origin !== origin) {
+      observations.push({ evidenceId: `surface:${destination.kind.toLowerCase()}:${observations.length}`, kind: destination.kind, url: destination.href, status: null, title: "", text: "", outcome: "CROSS_ORIGIN" });
+      continue;
+    }
+    const probe = await page.context().newPage();
+    try {
+      const response = await probe.goto(destination.href, { waitUntil: "domcontentloaded", timeout: 10_000 });
+      await probe.waitForLoadState("networkidle", { timeout: 2_000 }).catch(() => {});
+      observations.push({
+        evidenceId: `surface:${destination.kind.toLowerCase()}:${observations.length}`, kind: destination.kind, url: destination.href, status: response?.status() ?? null,
+        title: await probe.title().catch(() => ""),
+        text: (await probe.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 1_000),
+        outcome: response?.ok() ? "OBSERVED" : "FETCH_FAILED",
+      });
+    } catch {
+      observations.push({ evidenceId: `surface:${destination.kind.toLowerCase()}:${observations.length}`, kind: destination.kind, url: destination.href, status: null, title: "", text: "", outcome: "FETCH_FAILED" });
+    } finally {
+      await probe.close().catch(() => {});
+    }
+  }
+  return observations;
+}
+
 export type JourneyObservation = {
   stage: Stage;
   url: string;
@@ -141,6 +196,18 @@ export async function explorePurchaseJourney(
   let stage: Stage = "product";
   const observations: JourneyObservation[] = [];
   const network: NetworkPriceEvidence[] = [];
+  let surfaceDestinations: Awaited<ReturnType<typeof discoverSurfaceDestinations>> = [];
+  let surfaceObservations: SurfaceObservation[] = [];
+  const refreshSurface = async () => {
+    const discovered = await discoverSurfaceDestinations(page);
+    const known = new Set(surfaceDestinations.map(({ href }) => href));
+    const fresh = discovered.filter(({ href }) => !known.has(href));
+    surfaceDestinations = [...surfaceDestinations, ...fresh].slice(0, 12);
+    if (fresh.length) {
+      surfaceObservations = [...surfaceObservations, ...await inspectSurfaceDestinations(page, fresh.map(({ kind, href }) => ({ kind: kind as SurfaceObservation["kind"], href })))].slice(0, 12);
+    }
+  };
+  await refreshSurface();
   const pending = new Set<Promise<void>>();
   page.on("response", (response) => {
     if (new URL(response.url()).origin !== new URL(page.url()).origin) return;
@@ -154,33 +221,34 @@ export async function explorePurchaseJourney(
   if (purchasePath === "DIRECT") {
     const direct = await actionCandidate(page, directBuy);
     if (!direct.action) return {
-      observations, network, reached: stage,
+      observations, network, surfaceDestinations, surfaceObservations, reached: stage,
     blocker: await missingActionBlocker(page, direct.count, "DIRECT_BUY"),
     };
     const before = page.url();
     try { await clickAndSettle(page, direct.action); } catch {
-      return { observations, network, reached: stage,
+      return { observations, network, surfaceDestinations, surfaceObservations, reached: stage,
         blocker: { stage, code: "ACTION_FAILED", action: "DIRECT_BUY", candidateCount: 1 } satisfies JourneyBlocker };
     }
     observations.push({ stage, url: before, action: {
       id: "product:direct-buy", stage, kind: "NAVIGATION", capturedAt: new Date().toISOString(), outcome: "OBSERVED",
     }});
-    if (!await isCheckoutLike(page)) return { observations, network, reached: "product" as Stage,
+    if (!await isCheckoutLike(page)) return { observations, network, surfaceDestinations, surfaceObservations, reached: "product" as Stage,
       blocker: { stage: "product" as Stage, code: "ACTION_FAILED" as const, action: "DIRECT_BUY" as const, candidateCount: 1 } };
     stage = "checkout";
+    await refreshSurface();
     await onStage?.(stage);
     await Promise.allSettled([...pending]);
-    return { observations, network, reached: stage };
+    return { observations, network, surfaceDestinations, surfaceObservations, reached: stage };
   }
 
   const add = await actionCandidate(page, addCart);
   if (!add.action) return {
-    observations, network, reached: stage,
+    observations, network, surfaceDestinations, surfaceObservations, reached: stage,
     blocker: await missingActionBlocker(page, add.count, "ADD_TO_CART"),
   };
   const before = page.url();
   try { await clickAndSettle(page, add.action); } catch {
-    return { observations, network, reached: stage,
+    return { observations, network, surfaceDestinations, surfaceObservations, reached: stage,
       blocker: { stage, code: "ACTION_FAILED", action: "ADD_TO_CART", candidateCount: 1 } satisfies JourneyBlocker };
   }
   observations.push({ stage, url: before, action: {
@@ -192,25 +260,27 @@ export async function explorePurchaseJourney(
     await clickAndSettle(page, cartAction.action);
   }
   stage = "cart";
+  await refreshSurface();
   await onStage?.(stage);
 
   const next = await actionCandidate(page, checkout);
   if (!next.action) return {
-    observations, network, reached: stage,
+    observations, network, surfaceDestinations, surfaceObservations, reached: stage,
     blocker: await missingActionBlocker(page, next.count, "OPEN_CHECKOUT"),
   };
   const cartUrl = page.url();
   try { await clickAndSettle(page, next.action); } catch {
-    return { observations, network, reached: stage,
+    return { observations, network, surfaceDestinations, surfaceObservations, reached: stage,
       blocker: { stage, code: "ACTION_FAILED", action: "OPEN_CHECKOUT", candidateCount: 1 } satisfies JourneyBlocker };
   }
   observations.push({ stage, url: cartUrl, action: {
     id: "cart:open-checkout", stage, kind: "NAVIGATION", capturedAt: new Date().toISOString(), outcome: "OBSERVED",
   }});
-  if (!await isCheckoutLike(page)) return { observations, network, reached: "cart" as Stage,
+  if (!await isCheckoutLike(page)) return { observations, network, surfaceDestinations, surfaceObservations, reached: "cart" as Stage,
     blocker: { stage: "cart" as Stage, code: "ACTION_FAILED" as const, action: "OPEN_CHECKOUT" as const, candidateCount: 1 } };
   stage = "checkout";
+  await refreshSurface();
   await onStage?.(stage);
   await Promise.allSettled([...pending]);
-  return { observations, network, reached: stage };
+  return { observations, network, surfaceDestinations, surfaceObservations, reached: stage };
 }

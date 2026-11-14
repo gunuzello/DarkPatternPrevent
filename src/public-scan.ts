@@ -167,7 +167,12 @@ export async function scanPublicShop(
             (await purchaseActions.count() + inputCount > 0);
           if (hasProductSignal) {
             document = { url: renderedPage.url(), html: await renderedPage.content() };
-            const product = await capture(renderedPage, "product", directory, renderedPage.locator("body"), renderedPage.url(), false);
+            const productSnapshot = await capture(renderedPage, "product", directory, renderedPage.locator("body"), renderedPage.url(), false);
+            // Keep listing/banner language in the same evidence set so price and
+            // urgency/discount rules can see the first public price exposure.
+            const product = firstPriceExposure?.text
+              ? { ...productSnapshot, textLines: [...(productSnapshot.textLines ?? []), ...firstPriceExposure.text.split(/\n+/).map((line) => line.trim()).filter(Boolean)] }
+              : productSnapshot;
             await onStage(product);
             const report = {
               comparisonVersion: scanComparisonVersion,
@@ -188,7 +193,10 @@ export async function scanPublicShop(
     }
 
     await page.locator("body").waitFor({ state: "visible" });
-    const product = await capture(page, "product", directory, page.locator("body"), document.url, false);
+    const productSnapshot = await capture(page, "product", directory, page.locator("body"), document.url, false);
+    const product = firstPriceExposure?.text
+      ? { ...productSnapshot, textLines: [...(productSnapshot.textLines ?? []), ...firstPriceExposure.text.split(/\n+/).map((line) => line.trim()).filter(Boolean)] }
+      : productSnapshot;
     await onStage(product);
     const report = {
       comparisonVersion: scanComparisonVersion,

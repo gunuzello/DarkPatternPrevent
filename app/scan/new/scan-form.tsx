@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { post, scanRequest } from "../../scan-request";
 
-export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
+export function ScanForm() {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [pending, setPending] = useState(false);
@@ -57,14 +57,10 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
   }
 
   return (
-    <form onSubmit={submit}>
-      <p>공개 HTTPS 쇼핑몰 또는 상품 상세 URL만 입력하면 바로 진단을 시작합니다. 먼저 공개 화면을 검사하고, 장바구니·주문서 동적 검사는 별도 권한 연결 후 실행합니다.</p>
-      <div className="choices">
-        <button type="button" className="action secondary" onClick={() => setUrl(risky)}>위험 예시 URL 채우기</button>
-        <button type="button" className="action secondary" onClick={() => setUrl(clean)}>정상 예시 URL 채우기</button>
-      </div>
+    <form className="scan-form" onSubmit={submit}>
+      <p className="scan-form-intro">쇼핑몰 주소를 입력하면 공개 화면을 진단합니다. 장바구니와 주문서까지 확인하려면 동적 검사를 선택해 주세요.</p>
       <label className="field">쇼핑몰 URL
-        <input type="url" value={url} onChange={(event) => setUrl(event.target.value)} required />
+        <input type="url" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://your-shop.com" required />
       </label>
       <fieldset>
         <legend>화면 환경</legend>
@@ -76,7 +72,7 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
         <label><input type="radio" name="purchasePath" checked={purchasePath === "CART"} onChange={() => setPurchasePath("CART")} /> 장바구니 경유</label>{" "}
         <label><input type="radio" name="purchasePath" checked={purchasePath === "DIRECT"} onChange={() => setPurchasePath("DIRECT")} /> 바로구매</label>
       </fieldset>
-      <button type="button" className="action secondary" aria-pressed={dynamic} onClick={() => setDynamic((value) => !value)}>
+      <button type="button" className="action secondary scan-mode" aria-pressed={dynamic} onClick={() => setDynamic((value) => !value)}>
         {dynamic ? "동적 구매 흐름 검사 선택됨" : "소유 확인 후 동적 구매 흐름까지 검사"}
       </button>
       {dynamic && <fieldset>
@@ -85,7 +81,7 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
         <label className="field">아이디<input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} /></label>
         <label className="field">비밀번호<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
       </fieldset>}
-      <label><input type="checkbox" name="consent" required /> 이 대상에 대한 자동 진단 권한이 있으며 검사에 동의합니다.</label>
+      <label className="scan-consent"><input type="checkbox" name="consent" required /> 이 대상에 대한 자동 진단 권한이 있으며 검사에 동의합니다.</label>
       <button type="submit" className="action" disabled={pending}>{pending ? "요청 중…" : "진단 시작"}</button>
       {error && <p role="alert">{error}</p>}
       {verification && <section aria-live="polite">

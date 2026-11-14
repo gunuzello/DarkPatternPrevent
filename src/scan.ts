@@ -102,6 +102,29 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
     const { x, y, width, height } = control.getBoundingClientRect();
     return [{ label, bounds: { x: x + window.scrollX, y: y + window.scrollY, width, height }, location: { frame: "main", visible: true, source: "dom" as const } }];
   }));
+  const surfaceSignals = await main.locator('a, button, [role="button"], label, [role="dialog"]').evaluateAll((nodes) => {
+    const signals: { kind: "AUTH" | "SUBSCRIPTION" | "CANCELLATION" | "MARKETING_CONSENT" | "POPUP"; label: string; source: "link" | "button" | "text"; href?: string }[] = [];
+    for (const node of nodes) {
+      if (!(node as HTMLElement).checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
+      const label = (node.textContent ?? node.getAttribute("aria-label") ?? "").replace(/\s+/g, " ").trim().slice(0, 240);
+      if (!label) continue;
+      const source = node.matches("a") ? "link" : node.matches("button, [role=button]") ? "button" : "text";
+      const rawHref = node.matches("a") ? (node.getAttribute("href") ?? "") : "";
+      let href: string | undefined;
+      try {
+        const parsed = rawHref ? new URL(rawHref, window.location.href) : null;
+        href = parsed && parsed.origin === window.location.origin ? parsed.href : undefined;
+      } catch { href = undefined; }
+      const kind = /로그인|회원가입|sign\s*in|log\s*in|account/i.test(label) ? "AUTH"
+        : /구독|멤버십|정기\s*결제|자동\s*(?:갱신|연장)|subscription|membership/i.test(label) ? "SUBSCRIPTION"
+        : /해지|탈퇴|환불|구독\s*취소|cancel|unsubscribe/i.test(label) ? "CANCELLATION"
+        : /마케팅|광고성|정보\s*수신|newsletter|marketing/i.test(label) ? "MARKETING_CONSENT"
+        : /팝업|모달|닫기|오늘\s*하루|popup|modal/i.test(label) ? "POPUP" : null;
+      if (kind && !signals.some((item) => item.kind === kind && item.label === label && item.href === href)) signals.push({ kind, label, source, href });
+      if (signals.length >= 80) break;
+    }
+    return signals;
+  });
   const screenshot = stage + ".png";
   const origin = fullPage ? { x: 0, y: 0 } : await page.evaluate(() => ({ x: scrollX, y: scrollY }));
   const sensitiveFields = page.locator([
@@ -117,7 +140,7 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
   // PNG IHDR stores the rendered width and height as unsigned big-endian integers.
   const screenshotArea = { ...origin, width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
   const capturedAt = new Date().toISOString();
-  return { evidenceId: `evidence:${stage}`, stage, url, screenshot, screenshotArea, capturedAt, priceLines, textLines, options, fees, precheckedSignals };
+  return { evidenceId: `evidence:${stage}`, stage, url, screenshot, screenshotArea, capturedAt, priceLines, textLines, options, fees, precheckedSignals, surfaceSignals };
 }
 
 export async function scanDemo(

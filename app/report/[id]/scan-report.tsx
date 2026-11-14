@@ -35,7 +35,8 @@ type Report = {
     action: "ADD_TO_CART" | "OPEN_CHECKOUT" | "DIRECT_BUY"; candidateCount: number;
   } | null;
   findings: { id: number; type: keyof typeof legalRules; stage: Stage; reason: string }[];
-  reviewCandidates?: { id: string; kind: string; stage: Stage; text: string; reason: string; evidenceIds: string[] }[];
+  reviewCandidates?: { id: string; kind: string; stage: Stage | "surface"; text: string; reason: string; evidenceIds: string[] }[];
+  surfaceObservations?: { evidenceId: string; kind: "AUTH" | "SUBSCRIPTION" | "CANCELLATION"; url: string; status: number | null; title: string; text: string; outcome: string }[];
 };
 
 export function ScanReport({ id }: { id: string }) {
@@ -83,11 +84,19 @@ export function ScanReport({ id }: { id: string }) {
       </section>}
       <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {report.coverage[stage] === "COVERED" ? (report.executionMode === "STATIC" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : report.coverage[stage] === "SKIPPED" ? "선택 경로에 없음" : "미검사"}</li>)}</ul>
       {report.explorationBlocker && <p role="status">탐색 중단: {stageLabels[report.explorationBlocker.stage]}에서 {report.explorationBlocker.action === "ADD_TO_CART" ? "장바구니 담기" : report.explorationBlocker.action === "DIRECT_BUY" ? "바로구매" : "주문서 이동"} 동작을 {report.explorationBlocker.code === "LOGIN_REQUIRED" ? "로그인 화면으로 판단했습니다. 승인된 테스트 계정 또는 로그인 세션이 필요합니다." : report.explorationBlocker.code === "ACTION_AMBIGUOUS" ? `하나로 확정하지 못했습니다(후보 ${report.explorationBlocker.candidateCount}개).` : report.explorationBlocker.code === "ACTION_FAILED" ? "실행했지만 화면 전환을 확인하지 못했습니다." : "찾지 못했습니다."}</p>}
+      {report.surfaceObservations?.length ? <section aria-label="추가 흐름 관찰">
+        <h2>추가 흐름 관찰</h2>
+        <p>로그인·구독·해지 후보를 읽기 전용으로 확인했습니다. 폼 제출이나 결제·해지 동작은 실행하지 않았습니다.</p>
+        <ul>{report.surfaceObservations.map((item) => <li key={`${item.kind}:${item.url}`}>
+          {item.kind === "AUTH" ? "로그인·회원가입" : item.kind === "SUBSCRIPTION" ? "구독·멤버십" : "해지·환불"} · {item.outcome === "OBSERVED" ? "확인됨" : item.outcome === "CROSS_ORIGIN" ? "외부 출처로 미검사" : "접근 실패"} · {item.url} · 증거 {item.evidenceId}
+          {item.title ? ` · ${item.title}` : ""}
+        </li>)}</ul>
+      </section> : null}
       <h2>발견된 항목</h2>
       {report.findings.length ? <ul>{report.findings.map((finding) => (
         <li key={finding.id}><Link href={"/report/" + id + "/" + finding.id}>{legalRules[finding.type].title}</Link> · {stageLabels[finding.stage]}</li>
       ))}</ul> : <p>{report.executionMode === "STATIC" ? "검사한 공개 화면에서 지원하는 규칙의 위험 신호를 찾지 못했습니다. 구매 행동 이후 단계는 추가 검사가 필요합니다." : "검사한 범위에서 위험 신호가 발견되지 않았습니다."}</p>}
-      {report.reviewCandidates?.length ? <section><h2>추가 검토 후보</h2><p>규칙만으로 의미를 확정하지 않은 문구입니다. AI 또는 운영자 검토 대상으로만 전달하며 자동 판정에 포함하지 않습니다.</p><ul>{report.reviewCandidates.map((candidate) => <li key={candidate.id}>{candidate.text} · {candidate.reason} · {candidate.evidenceIds.join(", ")}</li>)}</ul></section> : null}
+      {report.reviewCandidates?.length ? <section><h2>추가 검토 후보</h2><p>규칙만으로 의미를 확정하지 않은 문구와 추가 흐름입니다. AI 또는 운영자 검토 대상으로만 전달하며 자동 판정에 포함하지 않습니다.</p><ul>{report.reviewCandidates.map((candidate) => <li key={candidate.id}>{candidate.stage === "surface" ? "추가 흐름" : stageLabels[candidate.stage]} · {candidate.text} · {candidate.reason} · {candidate.evidenceIds.join(", ")}</li>)}</ul></section> : null}
       {report.comparison && (
         <section>
           <h2>재진단 비교</h2>
