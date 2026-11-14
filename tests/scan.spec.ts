@@ -334,6 +334,18 @@ test("동적 탐색은 input submit 구매 동작도 의미 이름으로 인식�
   expect(result.blocker?.code).toBe("ACTION_NOT_FOUND");
 });
 
+test("HTML required 없이 필수 표식을 가진 상품 옵션도 먼저 선택한다", async ({ page }) => {
+  const { explorePurchaseJourney } = await import("../src/purchase-journey");
+  await page.setContent(`
+    <label>색상 선택 *</label>
+    <select><option value="">선택하세요</option><option value="black">블랙</option></select>
+    <button onclick="location.href='/cart'">장바구니에 담기</button>
+  `);
+  const result = await explorePurchaseJourney(page);
+  expect(await page.locator("select").inputValue()).toBe("black");
+  expect(result.observations.some(({ action }) => action.kind === "REQUIRED_OPTION_SELECTION")).toBe(true);
+});
+
 test("장바구니 담기 뒤 실제 장바구니가 비어 있으면 완료로 표시하지 않는다", async ({ page }) => {
   const { explorePurchaseJourney } = await import("../src/purchase-journey");
   await page.setContent(`
