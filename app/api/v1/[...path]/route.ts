@@ -118,6 +118,9 @@ export async function POST(request: NextRequest, context: Context) {
     if (!shop) return notFound();
     const target = scanTarget(shop.url);
     if (!target) return error("지원하는 쇼핑몰 주소가 아닙니다.", 400);
+    if (body.purchasePath !== undefined && !["CART", "DIRECT"].includes(body.purchasePath)) {
+      return error("구매 경로는 CART 또는 DIRECT여야 합니다.", 400);
+    }
     const purchasePath = body.purchasePath === "DIRECT" ? "DIRECT" : "CART";
     if (!["CONTEST", "DYNAMIC"].includes(body.profile) || !["DESKTOP", "MOBILE"].includes(body.viewport) ||
         !Array.isArray(body.flows) || body.flows.length !== 1 || body.flows[0] !== "PURCHASE" ||

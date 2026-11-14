@@ -35,6 +35,10 @@ test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async
     shopId: externalShop.shopId, profile: "DYNAMIC", flows: ["PURCHASE"], productLimit: 1, viewport: "DESKTOP",
   } });
   expect(unverifiedDynamic.status()).toBe(409);
+  const invalidPath = await request.post(api + "scans", { data: {
+    shopId: externalShop.shopId, profile: "CONTEST", flows: ["PURCHASE"], productLimit: 1, viewport: "DESKTOP", purchasePath: "UNKNOWN",
+  } });
+  expect(invalidPath.status()).toBe(400);
   const shop = await (await request.post(api + "shops", { data: { url: riskyUrl, consent: true } })).json();
   expect(shop.verification).toBeNull();
   const verified = await request.post(api + "shops/" + shop.shopId + "/verify", { data: {} });
