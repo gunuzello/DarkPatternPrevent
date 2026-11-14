@@ -34,9 +34,10 @@ class ScanControllerTest {
         mvc.perform(patch("/api/v1/scans/scan-1/status")
                 .header("X-Baromi-Worker", "test-worker-token")
                 .contentType("application/json")
-                .content("{\"status\":\"running\"}"))
+                .content("{\"status\":\"running\",\"stage\":\"cart\"}"))
             .andExpect(status().isAccepted())
             .andExpect(jsonPath("$.scanId").value("scan-1"))
+            .andExpect(jsonPath("$.currentStage").value("cart"))
             .andExpect(jsonPath("$.imported").value(true));
     }
 
