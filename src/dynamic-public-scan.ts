@@ -178,6 +178,7 @@ export async function scanDynamicPublicShop(
     const interactions: InteractionEvidence[] = [];
     const journeyTimeoutMs = Math.min(Math.max(Number(process.env.DYNAMIC_JOURNEY_TIMEOUT_MS ?? 120_000), 20_000), 300_000);
     let journeyFailure: string | null = null;
+    let journeyTimer: ReturnType<typeof setTimeout> | undefined;
     const journeyPromise = explorePurchaseJourney(page, async (stage) => {
       const snapshot = await capture(page, stage, directory, page.locator("body"), page.url(), true);
       snapshots.push(snapshot);
@@ -186,11 +187,12 @@ export async function scanDynamicPublicShop(
     }, purchasePath);
     const journey = await Promise.race([
       journeyPromise,
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`동적 구매 흐름 시간 초과(${journeyTimeoutMs}ms)`)), journeyTimeoutMs)),
+      new Promise<never>((_, reject) => { journeyTimer = setTimeout(() => reject(new Error(`동적 구매 흐름 시간 초과(${journeyTimeoutMs}ms)`)), journeyTimeoutMs); }),
     ]).catch((error: unknown) => {
       journeyFailure = error instanceof Error ? error.message : "동적 구매 흐름이 제한 시간 안에 끝나지 않았습니다.";
       return { observations: [], network: [], reached: "product" as const, blocker: { stage: "product" as const, code: "ACTION_FAILED" as const, action: purchasePath === "DIRECT" ? "DIRECT_BUY" as const : "ADD_TO_CART" as const, candidateCount: 0 } };
     });
+    if (journeyTimer) clearTimeout(journeyTimer);
     interactions.push(...journey.observations.map(({ action }) => action));
     const report = {
       comparisonVersion: scanComparisonVersion,
