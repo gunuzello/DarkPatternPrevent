@@ -36,7 +36,7 @@ type Report = {
   } | null;
   findings: { id: number; type: keyof typeof legalRules; stage: Stage; reason: string }[];
   reviewCandidates?: { id: string; kind: string; stage: Stage | "surface"; text: string; reason: string; evidenceIds: string[] }[];
-  surfaceObservations?: { evidenceId: string; kind: "AUTH" | "SUBSCRIPTION" | "CANCELLATION"; url: string; status: number | null; title: string; text: string; outcome: string }[];
+  surfaceObservations?: { evidenceId: string; kind: "AUTH" | "SUBSCRIPTION" | "CANCELLATION" | "COUPON" | "RECOMMENDATION" | "POLICY" | "CATALOG"; url: string; status: number | null; title: string; text: string; outcome: string }[];
 };
 
 export function ScanReport({ id }: { id: string }) {
@@ -88,7 +88,7 @@ export function ScanReport({ id }: { id: string }) {
         <h2>추가 흐름 관찰</h2>
         <p>로그인·구독·해지 후보를 읽기 전용으로 확인했습니다. 폼 제출이나 결제·해지 동작은 실행하지 않았습니다.</p>
         <ul>{report.surfaceObservations.map((item) => <li key={`${item.kind}:${item.url}`}>
-          {item.kind === "AUTH" ? "로그인·회원가입" : item.kind === "SUBSCRIPTION" ? "구독·멤버십" : "해지·환불"} · {item.outcome === "OBSERVED" ? "확인됨" : item.outcome === "CROSS_ORIGIN" ? "외부 출처로 미검사" : "접근 실패"} · {item.url} · 증거 {item.evidenceId}
+          {item.kind === "AUTH" ? "로그인·회원가입" : item.kind === "SUBSCRIPTION" ? "구독·멤버십" : item.kind === "CANCELLATION" ? "해지·환불" : item.kind === "COUPON" ? "쿠폰·프로모션" : item.kind === "RECOMMENDATION" ? "추천·인기" : item.kind === "CATALOG" ? "카테고리·상품목록" : "배송·교환·정책"} · {item.outcome === "OBSERVED" ? "확인됨" : item.outcome === "CROSS_ORIGIN" ? "외부 출처로 미검사" : "접근 실패"} · {item.url} · 증거 {item.evidenceId}
           {item.title ? ` · ${item.title}` : ""}
         </li>)}</ul>
       </section> : null}

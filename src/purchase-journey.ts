@@ -139,9 +139,13 @@ async function discoverSurfaceDestinations(page: Page) {
       const parsed = new URL(raw, window.location.href);
       if (parsed.origin !== expectedOrigin || !/^https?:$/.test(parsed.protocol)) return [];
       parsed.hash = "";
-      const kind = /로그인|회원가입|sign\s*in|log\s*in|account/i.test(text) ? "AUTH"
+    const kind = /로그인|회원가입|sign\s*in|log\s*in|account/i.test(text) ? "AUTH"
         : /구독|멤버십|정기\s*결제|자동\s*(?:갱신|연장)|subscription|membership/i.test(text) ? "SUBSCRIPTION"
-        : /해지|탈퇴|환불|구독\s*취소|cancel|unsubscribe/i.test(text) ? "CANCELLATION" : null;
+        : /해지|탈퇴|환불|구독\s*취소|cancel|unsubscribe/i.test(text) ? "CANCELLATION"
+          : /쿠폰|할인코드|프로모션|coupon|promo/i.test(text) ? "COUPON"
+            : /추천|인기|베스트|recommend|popular|best/i.test(text) ? "RECOMMENDATION"
+              : /배송|교환|반품|환불|이용약관|개인정보|policy|shipping|return/i.test(text) ? "POLICY"
+                : /카테고리|상품목록|전체상품|category|catalog|shop\s*all/i.test(text) ? "CATALOG" : null;
       return kind ? [{ kind, text, href: parsed.href }] : [];
     } catch { return []; }
   }), origin);
@@ -149,7 +153,7 @@ async function discoverSurfaceDestinations(page: Page) {
 
 export type SurfaceObservation = {
   evidenceId: string;
-  kind: "AUTH" | "SUBSCRIPTION" | "CANCELLATION";
+  kind: "AUTH" | "SUBSCRIPTION" | "CANCELLATION" | "COUPON" | "RECOMMENDATION" | "POLICY" | "CATALOG";
   url: string;
   status: number | null;
   title: string;
