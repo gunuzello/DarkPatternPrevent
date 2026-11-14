@@ -62,5 +62,7 @@
 
 2026-11-14 구매 흐름 도달 검증 보강 커밋(`503782c`) 이후에도 공개 정적 재실행을 완료했다. VERO는 `PARTIAL`·상품 1단계·발견 0건·수집 실패 없음, MEGA SALE은 `PARTIAL`·상품 1단계·`URGENCY_SCARCITY` 1건·수집 실패 없음으로 재현됐다. 이 재실행은 정적 공개 HTML/렌더링 폴백만 사용했으며, 동적 구매·로그인·주문 확정은 실행하지 않았다.
 
+공개 HTML 일시 오류 재시도 커밋(`77a7370`) 이후에도 같은 결과를 재현했다. 두 대상 모두 `collectionFailureCode`가 없었고, VERO는 발견 0건, MEGA SALE은 `URGENCY_SCARCITY` 1건이었다.
+
 2026-11-14에도 같은 결과를 재현했다: VERO `PARTIAL`/상품 단계/발견 0건, MEGA SALE `PARTIAL`/상품 단계/`URGENCY_SCARCITY` 1건, 두 대상 모두 수집 실패 없음.
 
