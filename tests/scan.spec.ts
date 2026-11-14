@@ -14,9 +14,11 @@ test("테스트 계정은 암호화된 일회성 값으로만 보관한다", () 
 });
 
 test("AI를 호출하지 않은 진단은 비용을 0으로 계측한다", async () => {
-  const { summarizeAiUsage, estimateAiUsage } = await import("../src/ai-cost");
+  const { summarizeAiUsage, estimateAiUsage, exceedsAiCostCap } = await import("../src/ai-cost");
   expect(summarizeAiUsage([])).toMatchObject({ calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 });
   expect(estimateAiUsage({ provider: "none", model: "none", purpose: "test", inputTokens: 1000, outputTokens: 500 })).toMatchObject({ estimatedCostUsd: 0 });
+  expect(exceedsAiCostCap({ provider: "test", model: "test", purpose: "test", inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0.2 }, "0.1")).toBe(true);
+  expect(exceedsAiCostCap({ provider: "test", model: "test", purpose: "test", inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0.2 }, "0.2")).toBe(false);
 });
 
 test("AI 후보 payload는 개인정보를 가리고 관찰 증거만 제한해 전달한다", () => {

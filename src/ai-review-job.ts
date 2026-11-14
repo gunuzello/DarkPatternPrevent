@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { db } from "./db";
-import { estimateAiUsage } from "./ai-cost";
+import { estimateAiUsage, exceedsAiCostCap } from "./ai-cost";
 import { buildAiCandidatePayload } from "./ai-review-payload";
 export { buildAiCandidatePayload } from "./ai-review-payload";
 
@@ -103,9 +103,8 @@ export async function runAiReviewJob(id: string) {
     const decisions = validatedDecisions(JSON.parse(text), candidates);
     if (!decisions.length) throw new Error("AI 응답에서 유효한 분석 결과를 읽지 못했습니다.");
     measuredUsage = estimateAiUsage({ provider: new URL(endpoint).hostname, model, purpose: "post-report-dark-pattern-review", inputTokens: body.usage?.input_tokens ?? 0, outputTokens: body.usage?.output_tokens ?? 0 });
-    const configuredCap = Number(process.env.BAROMI_AI_MAX_COST_USD);
-    if (Number.isFinite(configuredCap) && configuredCap >= 0 && measuredUsage.estimatedCostUsd > configuredCap) {
-      throw new Error(`AI 비용 상한(${configuredCap.toFixed(6)} USD)을 초과했습니다.`);
+    if (exceedsAiCostCap(measuredUsage)) {
+      throw new Error(`AI 비용 상한(${Number(process.env.BAROMI_AI_MAX_COST_USD).toFixed(6)} USD)을 초과했습니다.`);
     }
     await store.aiReview.update({ where: { id }, data: { status: "COMPLETED", completedAt: new Date(), durationMs: Date.now() - startedAt, resultJson: JSON.stringify({ decisions }), usageJson: JSON.stringify(measuredUsage), error: null } });
   } catch (error) {

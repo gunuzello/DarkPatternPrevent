@@ -30,3 +30,8 @@ export function summarizeAiUsage(items: AiUsage[]) {
     items,
   };
 }
+
+export function exceedsAiCostCap(usage: AiUsage, configuredCap = process.env.BAROMI_AI_MAX_COST_USD) {
+  const cap = Number(configuredCap);
+  return Number.isFinite(cap) && cap >= 0 && usage.estimatedCostUsd > cap;
+}
