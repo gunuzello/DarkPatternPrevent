@@ -1,7 +1,7 @@
 const endpoint = () => process.env.BAROMI_SPRING_API_URL?.replace(/\/$/, "");
 
 /** Best-effort bridge during the Spring migration. The SQLite path remains authoritative until cutover. */
-export async function notifySpringScanStatus(scanId: string, status: "queued" | "running" | "succeeded" | "failed" | "cancelled") {
+export async function notifySpringScanStatus(scanId: string, status: "queued" | "running" | "partial" | "succeeded" | "failed" | "cancelled") {
   const base = endpoint();
   const token = process.env.BAROMI_WORKER_TOKEN;
   if (!base || !token) return;

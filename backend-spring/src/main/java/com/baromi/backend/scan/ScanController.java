@@ -23,5 +23,5 @@ public class ScanController {
  }
  public record CreateScanRequest(String shopId) {}
  public record StatusRequest(String status) {}
- private static boolean isAllowed(String status){return switch(status){case "queued","running","succeeded","failed","cancelled" -> true; default -> false;};}
+ private static boolean isAllowed(String status){return switch(status){case "queued","running","partial","succeeded","failed","cancelled" -> true; default -> false;};}
 }

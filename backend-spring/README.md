@@ -5,7 +5,7 @@
 - `GET /api/v1/health`
 - `POST /api/v1/shops`, `GET /api/v1/shops/{id}`
 - `POST /api/v1/scans`, `GET /api/v1/scans/{id}`
-- `PATCH /api/v1/scans/{id}/status` (워커 전용)
+- `PATCH /api/v1/scans/{id}/status` (워커 전용; `queued/running/partial/succeeded/failed/cancelled`)
 
 상점/진단 생성은 현재 전환기용 `X-Baromi-Owner` 헤더를 사용한다. 최종 공개 인증은 별도 인증 계층으로 교체한다. 워커 상태 콜백은 `BAROMI_WORKER_TOKEN` 환경변수와 `X-Baromi-Worker` 헤더를 사용하며 토큰은 저장소에 커밋하지 않는다.
 
