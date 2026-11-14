@@ -2,6 +2,7 @@ package com.baromi.backend.scan;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -63,5 +64,21 @@ class ScanControllerTest {
             .andExpect(jsonPath("$.status").value("running"))
             .andExpect(jsonPath("$.targetUrl").value("https://shop.example/product"))
             .andExpect(jsonPath("$.executionMode").value("DYNAMIC"));
+    }
+
+    @Test
+    void workerCanRecoverOnlyStaleRunningScans() throws Exception {
+        var staleBefore = Instant.parse("2026-11-14T00:00:00Z");
+        var scan = new ScanEntity("scan-3", "shop-1", "running", Instant.parse("2026-11-13T23:00:00Z"));
+        when(scans.findByStatusAndStartedAtBefore("running", staleBefore)).thenReturn(java.util.List.of(scan));
+        when(scans.save(any(ScanEntity.class))).thenReturn(scan);
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/scans/recover")
+                .header("X-Baromi-Worker", "test-worker-token")
+                .contentType("application/json")
+                .content("{\"staleBefore\":\"2026-11-14T00:00:00Z\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.recovered").value(1));
+        verify(scans).save(scan);
     }
 }
