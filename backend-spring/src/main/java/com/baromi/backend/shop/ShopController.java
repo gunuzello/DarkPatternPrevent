@@ -43,7 +43,7 @@ public class ShopController {
 
     public record CreateShopRequest(String url, Boolean consent) {}
 
-    static String ownerHashForApi(String owner) {
+    public static String ownerHashForApi(String owner) {
         try {
             var digest = MessageDigest.getInstance("SHA-256").digest(owner.getBytes(StandardCharsets.UTF_8));
             var hex = new StringBuilder(digest.length * 2);
