@@ -1,16 +1,13 @@
 import Link from "next/link";
 
+const steps = [["01", "URL 하나로 시작", "소유 확인과 검사 동의를 마치면 별도 설치 없이 시작합니다."], ["02", "구매 흐름을 재현", "상품·장바구니·주문서에서 가격과 선택 상태를 순서대로 기록합니다."], ["03", "근거 있는 리포트", "위험 신호, 미검사 범위, 스크린샷과 가격 원장을 한눈에 확인합니다."]];
+
 export default function Home() {
-  return (
-    <main>
-    <p className="eyebrow">쇼핑몰 다크패턴 위험 신호 진단</p>
-      <h1>바로미</h1>
-      <p>상품 상세에서 주문서까지 유료 옵션과 필수 비용이 언제 표시되는지 근거와 함께 확인합니다.</p>
-      <nav aria-label="데모 시나리오">
-        <Link className="action" href="/scan/new">쇼핑몰 진단 시작</Link>
-        <Link className="action secondary" href="/demo/risky/product">검증 사례 보기</Link>
-        <Link className="action secondary" href="/demo/clean/product">정상 사례 보기</Link>
-      </nav>
-    </main>
-  );
+  return <div className="site-shell">
+    <header className="site-header"><Link className="brand" href="/" aria-label="바로미 홈"><img src="/brand/baromi-logo-full.png" alt="바로미" /></Link><nav className="top-nav" aria-label="주요 메뉴"><a href="#how">작동 방식</a><a href="#features">기능</a><a href="#trust">안전한 진단</a><Link className="header-cta" href="/scan/new">무료로 진단 시작</Link></nav></header>
+    <main className="marketing-main"><section className="hero"><div className="hero-copy"><p className="eyebrow"><span className="eyebrow-dot" /> SHOPPING TRUST PLATFORM</p><h1>쇼핑몰을<br /><span>더 바르게.</span></h1><p className="hero-lede">바로미는 쇼핑몰의 구매 흐름을 실제처럼 살펴보고, 고객이 놓치기 쉬운 다크패턴 위험 신호를 근거와 함께 알려주는 진단 서비스입니다.</p><div className="hero-actions"><Link className="action hero-action" href="/scan/new">내 쇼핑몰 진단하기 <span>→</span></Link><Link className="text-link" href="/demo/risky/product">리포트 예시 보기 <span>↗</span></Link></div><div className="hero-note"><span>✓</span> 카드 등록 없이 시작 · 법률 판단이 아닌 가이드라인 기준 위험 신호</div></div><div className="hero-card" aria-label="진단 결과 미리보기"><div className="card-top"><span className="live-dot" /> 진단 리포트 미리보기 <span className="mini-date">방금 전</span></div><div className="scan-site"><div className="site-favicon">V</div><div><strong>vero-clean-mall.kr</strong><small>구매 흐름 3단계 확인</small></div><span className="status-pill good">안전</span></div><div className="metric-row"><div><small>검사 범위</small><strong>상품 · 장바구니 · 주문서</strong></div><div><small>근거 스냅샷</small><strong>12개</strong></div></div><div className="signal"><div className="signal-icon">✓</div><div><strong>기본 선택된 유료 옵션</strong><p>발견되지 않았습니다</p></div><span className="signal-ok">정상</span></div><div className="signal warning"><div className="signal-icon">!</div><div><strong>배송비 공개 시점</strong><p>주문서 단계에서 처음 확인됨</p></div><span className="signal-review">검토</span></div><Link className="card-link" href="/demo/risky/product">전체 리포트 열어보기 <span>→</span></Link></div></section>
+      <section className="trust-strip" id="trust"><span>바로미가 지키는 기준</span><b>근거 없이 단정하지 않습니다</b><i /><b>검사하지 못한 범위를 숨기지 않습니다</b><i /><b>고객의 구매 경험을 더 투명하게 만듭니다</b></section>
+      <section className="section" id="features"><div className="section-heading"><p className="eyebrow">WHAT BAROMI CHECKS</p><h2>보이지 않던 위험 신호를<br /><em>구매 흐름 안에서</em> 찾습니다.</h2><p>첫 화면의 인상만으로 판단하지 않습니다. 고객이 실제로 결제에 이르는 과정을 단계별로 관찰하고, 확인한 사실과 추가 검토가 필요한 신호를 분리해 보여줍니다.</p></div><div className="feature-grid"><article><span className="feature-number">01</span><h3>사전선택 옵션</h3><p>마케팅 수신, 자동연장, 포장비 등 유료·불리한 선택이 기본으로 선택되어 있는지 확인합니다.</p><Link href="/demo/risky/product">탐지 예시 보기 →</Link></article><article><span className="feature-number">02</span><h3>순차 공개 비용</h3><p>상품 상세에서 주문서까지 이동하며 배송비·수수료·필수 비용이 언제 공개되는지 기록합니다.</p><Link href="/demo/risky/product">가격 원장 보기 →</Link></article><article><span className="feature-number">03</span><h3>안전한 증거 리포트</h3><p>스크린샷, 화면 문구, 가격 변화를 연결해 팀이 바로 확인하고 수정할 수 있는 리포트를 만듭니다.</p><Link href="/scan/new">진단 시작하기 →</Link></article></div></section>
+      <section className="process-section" id="how"><div className="section-heading centered"><p className="eyebrow">HOW IT WORKS</p><h2>복잡한 건 바로미가 할게요.</h2><p>운영자는 쇼핑몰 주소를 입력하고 진단 권한만 확인하면 됩니다.</p></div><div className="steps">{steps.map(([num, title, body]) => <div className="step" key={num}><span>{num}</span><h3>{title}</h3><p>{body}</p></div>)}</div><div className="cta-panel"><div><p className="eyebrow">READY WHEN YOU ARE</p><h2>지금, 고객의 구매 경험을<br />투명하게 확인해보세요.</h2></div><Link className="action light-action" href="/scan/new">진단 시작하기 <span>→</span></Link></div></section>
+    </main><footer className="site-footer"><Link className="brand footer-brand" href="/"><img src="/brand/baromi-logo-full.png" alt="바로미" /></Link><p>쇼핑몰을 더 바르게.</p><span>© 2026 Baromi. 위험 신호 진단 서비스.</span></footer></div>;
 }

@@ -1,0 +1,11 @@
+:root {
+  --baromi-primary-start: #4F6BFF;
+  --baromi-primary-end: #8A5CFF;
+  --baromi-primary-gradient: linear-gradient(115deg, #4F6BFF 0%, #8A5CFF 100%);
+  --baromi-navy: #0F172A;
+  --baromi-lavender: #E8EDFF;
+  --baromi-surface: #F6F8FF;
+  --baromi-success: #10B981;
+  --baromi-warning: #FFB86B;
+  --baromi-danger: #FF6B6B;
+}
