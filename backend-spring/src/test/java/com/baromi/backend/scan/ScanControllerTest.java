@@ -49,4 +49,19 @@ class ScanControllerTest {
                 .content("{\"status\":\"running\"}"))
             .andExpect(status().isForbidden());
     }
+
+    @Test
+    void workerCanClaimQueuedScanWithExecutionConfig() throws Exception {
+        var scan = new ScanEntity("scan-2", "shop-1", "queued", Instant.now(), "https://shop.example/product", "DYNAMIC", "DESKTOP", "CART");
+        when(scans.findFirstByStatusOrderByCreatedAtAscIdAsc("queued")).thenReturn(Optional.of(scan));
+        when(scans.save(any(ScanEntity.class))).thenReturn(scan);
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/scans/claim")
+                .header("X-Baromi-Worker", "test-worker-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.scanId").value("scan-2"))
+            .andExpect(jsonPath("$.status").value("running"))
+            .andExpect(jsonPath("$.targetUrl").value("https://shop.example/product"))
+            .andExpect(jsonPath("$.executionMode").value("DYNAMIC"));
+    }
 }

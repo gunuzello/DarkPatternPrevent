@@ -25,6 +25,14 @@ public class ScanController {
   var body = statusBody(imported); body.put("imported", true);
   return ResponseEntity.status(HttpStatus.ACCEPTED).body(body);
  }
+ @PostMapping("/claim") public ResponseEntity<?> claim(@RequestHeader("X-Baromi-Worker") String token){
+  if(workerToken.isBlank()||!workerToken.equals(token)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error","워커 인증이 필요합니다."));
+  var queued = scans.findFirstByStatusOrderByCreatedAtAscIdAsc("queued");
+  if(queued.isEmpty()) return ResponseEntity.noContent().build();
+  var scan = queued.get(); scan.setStatus("running"); scans.save(scan);
+  var body = statusBody(scan); body.put("shopId",scan.getShopId()); body.put("targetUrl",scan.getTargetUrl()); body.put("executionMode",scan.getExecutionMode()); body.put("viewport",scan.getViewport()); body.put("purchasePath",scan.getPurchasePath());
+  return ResponseEntity.ok(body);
+ }
  @GetMapping("/{id}") public ResponseEntity<?> get(@RequestHeader("X-Baromi-Owner") String owner,@PathVariable String id){
   return scans.findById(id).filter(s->s.getShopId()!=null && shops.findByIdAndOwnerHash(s.getShopId(),ShopController.ownerHashForApi(owner)).isPresent()).<ResponseEntity<?>>map(s->{ var body=statusBody(s); body.put("shopId",s.getShopId()); return ResponseEntity.ok(body); }).orElseGet(()->ResponseEntity.notFound().build());
  }
