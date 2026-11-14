@@ -54,6 +54,15 @@ Playwright 테스트는 별도 포트에서 데모 서버를 시작합니다. �
 
 Chromium 다운로드가 어려운 환경에서 Chrome이 이미 설치되어 있으면 `PLAYWRIGHT_CHANNEL=chrome npm test` 또는 `PLAYWRIGHT_CHANNEL=chrome npm run scan -- risky`로 실행할 수 있습니다.
 
+워커에서 `browser.newContext` 또는 `Target page, context or browser has been closed`가 발생하면 쇼핑몰 오류와 브라우저 실행 환경을 먼저 구분합니다. 설치된 Chrome을 사용할 수 있는 환경에서는 워커와 테스트를 같은 채널로 실행하세요.
+
+```sh
+PLAYWRIGHT_CHANNEL=chrome npm run worker
+PLAYWRIGHT_CHANNEL=chrome npm test
+```
+
+브라우저가 중단되면 워커는 결제·주문 확정 동작을 시도하지 않고, 해당 단계와 미검사 범위를 보고서에 남겨야 합니다. OTP·CAPTCHA·추가 인증은 우회하지 않습니다.
+
 ## 브라우저에서 진단
 
 개발 서버와 별도 터미널에서 진단 워커를 실행합니다.
