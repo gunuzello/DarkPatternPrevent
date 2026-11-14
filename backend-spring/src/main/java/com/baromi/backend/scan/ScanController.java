@@ -4,6 +4,7 @@ import com.baromi.backend.shop.ShopRepository;
 import java.time.Instant; import java.util.LinkedHashMap; import java.util.Map; import java.util.UUID;
 import org.springframework.http.*; import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.transaction.annotation.Transactional;
 @RestController @RequestMapping("/api/v1/scans")
 public class ScanController {
  private final ScanRepository scans; private final ShopRepository shops;
@@ -25,7 +26,7 @@ public class ScanController {
   var body = statusBody(imported); body.put("imported", true);
   return ResponseEntity.status(HttpStatus.ACCEPTED).body(body);
  }
- @PostMapping("/claim") public ResponseEntity<?> claim(@RequestHeader("X-Baromi-Worker") String token){
+ @Transactional @PostMapping("/claim") public ResponseEntity<?> claim(@RequestHeader("X-Baromi-Worker") String token){
   if(workerToken.isBlank()||!workerToken.equals(token)) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error","워커 인증이 필요합니다."));
   var queued = scans.findFirstByStatusOrderByCreatedAtAscIdAsc("queued");
   if(queued.isEmpty()) return ResponseEntity.noContent().build();
