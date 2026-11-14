@@ -17,6 +17,7 @@ type ScanState = {
   progress: number;
   currentStage?: Stage | null;
   coverage: Record<Stage, "COVERED" | "BLOCKED" | "PENDING" | "SKIPPED">;
+  summary?: { suspected: number; reviewNeeded: number; notTested: number };
 };
 
 const labels = {
@@ -71,11 +72,12 @@ export function ScanProgress({ id }: { id: string }) {
   const reportReady = scan.status === "COMPLETED" || scan.status === "PARTIAL";
   return (
     <section>
-      <p role="status"><strong>{scan.cancelRequested && active ? "중단 요청 처리 중" : labels[scan.status]}</strong></p>
-      {active && <><progress aria-label="진단 진행률" value={scan.progress} max={100} />{scan.currentStage && <p>현재 단계: {stageLabels[scan.currentStage]}</p>}</>}
-      <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {
+      <div className="progress-status"><span className={`status-dot ${active ? "active" : ""}`} /> <strong>{scan.cancelRequested && active ? "중단 요청 처리 중" : labels[scan.status]}</strong><span className="progress-hint">보통 30초~3분</span></div>
+      {active && <><progress aria-label="진단 진행률" value={scan.progress} max={100} />{scan.currentStage && <p className="current-stage">지금 확인 중 · <strong>{stageLabels[scan.currentStage]}</strong></p>}<p className="safe-note">결제·주문 확정·외부 사이트 이동은 실행하지 않습니다.</p></>}
+      <div className="stage-list">{stages.map((stage) => <div className={`stage-row ${scan.coverage[stage].toLowerCase()}`} key={stage}><span className="stage-mark" /> <strong>{stageLabels[stage]}</strong><span>{
         scan.coverage[stage] === "COVERED" ? (scan.scenario === "public" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : scan.coverage[stage] === "SKIPPED" ? "선택 경로에 없음" : scan.coverage[stage] === "BLOCKED" ? "미검사" : "대기"
-      }</li>)}</ul>
+      }</span></div>)}</div>
+      {scan.summary && <div className="scan-mini-summary"><span>위험 신호 <b>{scan.summary.suspected}</b></span><span>검토 필요 <b>{scan.summary.reviewNeeded}</b></span><span>미검사 <b>{scan.summary.notTested}</b></span></div>}
       {active && <button className="action secondary" disabled={pending || scan.cancelRequested} onClick={() => act("cancel")}>진단 중단</button>}
       {reportReady && <Link className="action" href={"/report/" + id}>진단 결과 보기</Link>}
       {!active && !reportReady && <button className="action" disabled={pending} onClick={() => act("retry")}>같은 조건으로 재진단</button>}
