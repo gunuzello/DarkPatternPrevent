@@ -107,6 +107,7 @@ class ScanControllerTest {
         mvc.perform(get("/api/v1/scans/shop/shop-1").header("X-Baromi-Owner", "owner-1"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.shopId").value("shop-1"))
+            .andExpect(jsonPath("$.limit").value(50))
             .andExpect(jsonPath("$.scans[0].scanId").value("scan-4"))
             .andExpect(jsonPath("$.scans[0].createdAt").exists())
             .andExpect(jsonPath("$.scans[0].updatedAt").exists());
@@ -122,5 +123,16 @@ class ScanControllerTest {
                 .contentType("application/json")
                 .content("{\"id\":\"scan-safe\",\"shopId\":\"shop-safe\",\"targetUrl\":\"https://attacker.example/\",\"executionMode\":\"DYNAMIC\"}"))
             .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void scanHistoryLimitIsClampedToSafeRange() throws Exception {
+        var shop = new com.baromi.backend.shop.ShopEntity("shop-limit", "https://shop.example", ShopController.ownerHashForApi("owner-1"), Instant.now());
+        when(shops.findByIdAndOwnerHash("shop-limit", ShopController.ownerHashForApi("owner-1"))).thenReturn(Optional.of(shop));
+        when(scans.findByShopIdOrderByCreatedAtDesc("shop-limit")).thenReturn(java.util.List.of());
+
+        mvc.perform(get("/api/v1/scans/shop/shop-limit?limit=0").header("X-Baromi-Owner", "owner-1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.limit").value(1));
     }
 }
