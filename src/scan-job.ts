@@ -12,6 +12,7 @@ import { buildPriceLedger } from "./price-ledger";
 import { scanComparisonVersion } from "./scan-comparison";
 import { decryptCredentials, type TestCredentials } from "./credential-vault";
 import { notifySpringScanStatus } from "./spring-status";
+import { classifyDynamicFailure } from "./scan-failure";
 
 export async function runScanJob(id: string, targetUrl: string) {
   const store = db();
@@ -59,7 +60,6 @@ export async function runScanJob(id: string, targetUrl: string) {
       } catch (error) {
         if (requested.executionMode !== "DYNAMIC") throw error;
         const message = error instanceof Error ? error.message : "동적 구매 흐름을 수집하지 못했습니다.";
-        const authChallenge = /(?:otp|captcha|추가 인증|인증 코드|보안 문자|로그인에 실패)/i.test(message);
         report = {
           comparisonVersion: scanComparisonVersion,
           scanStatus: "PARTIAL" as const, executionMode: "DYNAMIC" as const,
@@ -68,7 +68,7 @@ export async function runScanJob(id: string, targetUrl: string) {
           scenario: "public" as const, targetUrl, snapshots: [], interactions: [],
           explorationBlocker: null, networkPriceEvidence: [], priceLedger: buildPriceLedger([]), findings: [],
           collectionFailure: message,
-          collectionFailureCode: authChallenge ? "AUTH_CHALLENGE" as const : "DYNAMIC_JOURNEY_FAILED" as const,
+          collectionFailureCode: classifyDynamicFailure(message),
         };
         await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
       }

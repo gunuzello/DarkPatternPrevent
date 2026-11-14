@@ -340,6 +340,12 @@ test("사이트 확인 메타 태그는 속성 순서와 따옴표가 달라도 
   expect(matchesVerification(`<script>${verification.token}</script>`, verification.hash)).toBe(false);
 });
 
+test("동적 수집 실패는 추가 인증과 일반 탐색 실패를 구분한다", async () => {
+  const { classifyDynamicFailure } = await import("../src/scan-failure");
+  expect(classifyDynamicFailure("로그인에 실패했거나 추가 인증이 필요합니다.")).toBe("AUTH_CHALLENGE");
+  expect(classifyDynamicFailure("동적 구매 흐름 시간 초과(120000ms)")).toBe("DYNAMIC_JOURNEY_FAILED");
+});
+
 test("가격 원장은 화면과 API 금액의 일치·불일치를 값별로 보존한다", async () => {
   const { buildPriceLedger } = await import("../src/price-ledger");
   const snapshot = {
