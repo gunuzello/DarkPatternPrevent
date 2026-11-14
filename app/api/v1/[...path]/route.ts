@@ -196,10 +196,11 @@ export async function GET(request: NextRequest, context: Context) {
         db().scan.count({ where: { status: "RUNNING" } }),
         db().scan.count({ where: { status: "RUNNING", startedAt: { lt: new Date(Date.now() - 6 * 60 * 1000) } } }),
       ]);
+      const healthy = stale === 0;
       return Response.json({
-        status: "ok", service: "baromi", version: process.env.APP_VERSION ?? "0.1.0",
+        status: healthy ? "ok" : "degraded", service: "baromi", version: process.env.APP_VERSION ?? "0.1.0",
         worker: { queued, running, stale },
-      }, {
+      }, { status: healthy ? 200 : 503,
         headers: { "Cache-Control": "no-store" },
       });
     } catch {

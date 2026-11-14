@@ -20,6 +20,7 @@ test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async
   await expect(health.json()).resolves.toMatchObject({
     status: "ok", service: "baromi", worker: { queued: expect.any(Number), running: expect.any(Number), stale: expect.any(Number) },
   });
+  expect((await health.json()).worker.stale).toBe(0);
   for (const data of [{ url: riskyUrl, consent: false }, { url: "https://example.invalid", consent: true }]) {
     expect((await request.post(api + "shops", { data })).status()).toBe(400);
   }
