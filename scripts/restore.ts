@@ -7,6 +7,10 @@ async function exists(path: string) {
 }
 
 async function main() {
+  if (process.argv.includes("--help") || process.argv.includes("-h")) {
+    console.log("사용법: npm run restore -- <snapshot> <destination>\n기존 복원 대상은 덮어쓰지 않고 새 디렉터리만 허용합니다.");
+    return;
+  }
   const snapshot = process.argv[2] && resolve(process.argv[2]);
   const destination = process.argv[3] && resolve(process.argv[3]);
   if (!snapshot || !destination) throw new Error("사용법: npm run restore -- <snapshot> <destination>");
