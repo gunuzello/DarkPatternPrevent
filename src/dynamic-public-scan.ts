@@ -176,12 +176,21 @@ export async function scanDynamicPublicShop(
     await mkdir(directory, { recursive: true });
     const snapshots: Snapshot[] = [];
     const interactions: InteractionEvidence[] = [];
-    const journey = await explorePurchaseJourney(page, async (stage) => {
+    const journeyTimeoutMs = Math.min(Math.max(Number(process.env.DYNAMIC_JOURNEY_TIMEOUT_MS ?? 120_000), 20_000), 300_000);
+    let journeyFailure: string | null = null;
+    const journeyPromise = explorePurchaseJourney(page, async (stage) => {
       const snapshot = await capture(page, stage, directory, page.locator("body"), page.url(), true);
       snapshots.push(snapshot);
       if (stage === "product") interactions.push(...await observePaidOptionChanges(page, page.locator("body"), stage));
       await onStage(snapshot);
     }, purchasePath);
+    const journey = await Promise.race([
+      journeyPromise,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`동적 구매 흐름 시간 초과(${journeyTimeoutMs}ms)`)), journeyTimeoutMs)),
+    ]).catch((error: unknown) => {
+      journeyFailure = error instanceof Error ? error.message : "동적 구매 흐름이 제한 시간 안에 끝나지 않았습니다.";
+      return { observations: [], network: [], reached: "product" as const, blocker: { stage: "product" as const, code: "ACTION_FAILED" as const, action: purchasePath === "DIRECT" ? "DIRECT_BUY" as const : "ADD_TO_CART" as const, candidateCount: 0 } };
+    });
     interactions.push(...journey.observations.map(({ action }) => action));
     const report = {
       comparisonVersion: scanComparisonVersion,
@@ -191,7 +200,7 @@ export async function scanDynamicPublicShop(
       networkPriceEvidence: journey.network,
       priceLedger: buildPriceLedger(snapshots, journey.network, firstPriceExposure),
       reviewCandidates: collectReviewCandidates(snapshots),
-      findings: detect(snapshots, firstPriceExposure?.feeMentions), collectionFailure: null, collectionFailureCode: null,
+      findings: detect(snapshots, firstPriceExposure?.feeMentions), collectionFailure: journeyFailure, collectionFailureCode: journeyFailure ? "DYNAMIC_JOURNEY_FAILED" as const : null,
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
     return report;
