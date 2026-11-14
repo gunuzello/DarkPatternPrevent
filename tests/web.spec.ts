@@ -84,10 +84,9 @@ test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진�
     stdio: "inherit",
     detached: true,
   });
-  await page.goto(origin);
-  await page.getByRole("link", { name: "쇼핑몰 진단 시작" }).click();
-  await page.getByRole("button", { name: "위험 예시 URL 채우기" }).click();
-  await page.getByRole("checkbox").check();
+  await page.goto(origin + "/scan/new");
+  await page.getByLabel("쇼핑몰 URL").fill(riskyUrl);
+  await page.getByRole("checkbox", { name: /자동 진단 권한/ }).check();
   await page.getByRole("button", { name: "진단 시작" }).click();
   await page.getByRole("link", { name: "진단 결과 보기" }).click({ timeout: 60_000 });
   await page.waitForURL("**/report/*");
