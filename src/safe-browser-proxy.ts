@@ -1,6 +1,7 @@
 import { Resolver } from "node:dns/promises";
 import { createServer, type Server } from "node:http";
 import { connect } from "node:net";
+import type { Duplex } from "node:stream";
 import { publicAddress } from "./public-html";
 
 type ResolveHost = (hostname: string) => Promise<string[]>;
@@ -30,10 +31,13 @@ export type SafeBrowserProxy = { server: string; close: () => Promise<void> };
 
 export async function startSafeBrowserProxy(resolveHost: ResolveHost = systemResolve): Promise<SafeBrowserProxy> {
   const sockets = new Set<ReturnType<typeof connect>>();
+  const clients = new Set<Duplex>();
   const server: Server = createServer((_request, response) => {
     response.writeHead(405, { Connection: "close" }).end();
   });
   server.on("connect", (request, client, head) => {
+    clients.add(client);
+    client.once("close", () => clients.delete(client));
     void safeConnectTarget(request.url ?? "", resolveHost).then((target) => {
       if (sockets.size >= 64) throw new Error("동시 브라우저 연결 제한을 초과했습니다.");
       const upstream = connect({ host: target.address, port: target.port });
@@ -60,6 +64,7 @@ export async function startSafeBrowserProxy(resolveHost: ResolveHost = systemRes
     server: `http://127.0.0.1:${address.port}`,
     close: () => new Promise<void>((resolve, reject) => {
       for (const socket of sockets) socket.destroy();
+      for (const client of clients) client.destroy();
       server.close((error) => error ? reject(error) : resolve());
     }),
   };
