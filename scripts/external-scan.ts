@@ -45,6 +45,18 @@ async function summarize(reportPath: string): Promise<ScanSummary> {
   };
 }
 
+function stableSummary(report: ScanSummary) {
+  return JSON.stringify({
+    scanStatus: report.scanStatus,
+    reached: report.reached,
+    collectionFailure: report.collectionFailure,
+    collectionFailureCode: report.collectionFailureCode,
+    explorationBlocker: report.explorationBlocker,
+    surfaceObservations: report.surfaceObservations,
+    findings: report.findings,
+  });
+}
+
 async function main() {
   const hardTimeout = setTimeout(() => {
     console.error(`외부 진단이 ${hardTimeoutMs}ms 제한을 초과해 중단되었습니다.`);
@@ -63,9 +75,11 @@ async function main() {
       reports.push(await summarize(reportPath));
       await rm(evidenceDirectory(scanId), { recursive: true, force: true }).catch(() => undefined);
     }
-    const baseline = JSON.stringify(reports[0]);
-    const matchingRuns = reports.filter((report) => JSON.stringify(report) === baseline).length;
-    console.log(JSON.stringify({ ok: true, scanIds, repeatCount, matchingRuns, repeatability: matchingRuns / reports.length, reports }));
+    const baseline = stableSummary(reports[0]);
+    const matchingRuns = reports.filter((report) => stableSummary(report) === baseline).length;
+    const durations = reports.map((report) => report.durationMs);
+    console.log(JSON.stringify({ ok: true, scanIds, repeatCount, matchingRuns, repeatability: matchingRuns / reports.length,
+      durationMs: { min: Math.min(...durations), max: Math.max(...durations), average: durations.reduce((sum, value) => sum + value, 0) / durations.length }, reports }));
   } finally {
     clearTimeout(hardTimeout);
     await store.scan.deleteMany({ where: { shopId } }).catch(() => undefined);
