@@ -43,11 +43,12 @@
 
 `GET /api/v1/scans/{scanId}` — 소유자 범위의 단건 상태 조회
 
-`GET /api/v1/scans/shop/{shopId}` — 소유자 범위의 최신순 목록
+`GET /api/v1/scans/shop/{shopId}?limit=50` — 소유자 범위의 최신순 목록. `limit`은 1~100으로 제한된다.
 
 ```json
 {
   "shopId": "shop-id",
+  "limit": 50,
   "scans": [
     { "scanId": "scan-id", "status": "running", "currentStage": "cart", "createdAt": "2026-11-14T10:00:00Z", "updatedAt": "2026-11-14T10:01:00Z", "startedAt": "2026-11-14T10:00:05Z" }
   ]
