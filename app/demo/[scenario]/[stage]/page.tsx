@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { scenarios, stages } from "../../../../src/demo";
+import "../../demo.css";
 
 type Props = {
   params: Promise<{ scenario: string; stage: string }>;
@@ -30,11 +31,12 @@ export default async function DemoPage({ params, searchParams }: Props) {
   const checkoutPath = "/demo/" + scenario + "/checkout" + (giftSelected ? "?gift=yes" : "");
 
   return (
-    <main data-stage={stage}>
-      <Link href="/">바로미</Link>
-      <p className="eyebrow">모의 쇼핑몰 · {risky ? "위험 사례" : "정상 사례"}</p>
+    <main className="demo-shop" data-stage={stage}>
+      <header className="demo-header"><Link href="/" className="demo-brand">바로미 <span>진단 예시</span></Link><span className="demo-badge">읽기 전용 시뮬레이션</span></header>
+      <div className="demo-note">바로미가 위험 신호를 설명하기 위한 예시 화면입니다. 실제 쇼핑몰 결제와 연결되지 않습니다.</div>
+      <section className="demo-card"><p className="demo-kicker">{risky ? "위험 신호 예시" : "정상 흐름 예시"} · {stage === "product" ? "상품 상세" : stage === "cart" ? "장바구니" : "주문서"}</p>
       <h1>{title}</h1>
-      <ul aria-label="가격 내역">
+      <ul className="demo-price" aria-label="가격 내역">
         <li>상품가 {won(productPrice)}</li>
         {!product && giftSelected && <li>선물 포장 {won(giftPrice)}</li>}
         {showFee && <li data-fee-id="handling" data-required="true" data-won={handlingFee}>필수 처리비 {won(handlingFee)}</li>}
@@ -51,7 +53,8 @@ export default async function DemoPage({ params, searchParams }: Props) {
       )}
       {product && <a className="action secondary" href={checkoutPath}>바로구매</a>}
       {stage === "cart" && <a className="action" href={checkoutPath}>주문서 보기</a>}
-      {checkout && <p>데모 주문서입니다. 탐색은 여기에서 종료됩니다.</p>}
+      {checkout && <p className="demo-finish">예시 탐색은 주문서에서 종료됩니다. 결제 버튼은 제공하지 않습니다.</p>}
+      </section>
     </main>
   );
 }
