@@ -20,7 +20,8 @@
 
 ## 다음 환경 게이트
 
-- 실제 운영 PostgreSQL에서 Flyway V1~V6 적용
+- 실제 운영 PostgreSQL에서 Flyway V1~V7 적용
+- `Scan(status, created_at, id)`, `Scan(status, started_at)`, `Scan(shop_id, created_at DESC)` 인덱스 생성 확인
 - Spring 큐 claim의 단일 워커·재시작·중복 claim 검증
 - 운영 인증 계층 도입 후 `X-Baromi-Owner` 제거
 - Compose 기동 후 `/actuator/health`와 워커 상태 콜백 실환경 확인
