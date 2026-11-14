@@ -4,6 +4,8 @@ import { estimateAiUsage, exceedsAiCostCap } from "./ai-cost";
 import { buildAiCandidatePayload } from "./ai-review-payload";
 export { buildAiCandidatePayload } from "./ai-review-payload";
 
+export const AI_REVIEW_PROMPT_VERSION = "review-v1";
+
 type Candidate = import("./ai-review-payload").ReviewCandidate;
 type Evidence = import("./ai-review-payload").ReviewEvidence;
 type AiDecision = {
@@ -91,7 +93,7 @@ export async function runAiReviewJob(id: string) {
           model,
           input: [
             { role: "system", content: "당신은 쇼핑 인터페이스의 다크패턴 검토 분류기입니다. 제공된 관찰만 판단하고 법률 위반을 단정하지 마세요. JSON만 반환하세요." },
-            { role: "user", content: JSON.stringify({ task: "각 후보를 분류", labels: ["LIKELY_RISK", "NEEDS_REVIEW", "LIKELY_BENIGN", "INSUFFICIENT_EVIDENCE"], candidates }) },
+            { role: "user", content: JSON.stringify({ promptVersion: AI_REVIEW_PROMPT_VERSION, task: "각 후보를 분류", labels: ["LIKELY_RISK", "NEEDS_REVIEW", "LIKELY_BENIGN", "INSUFFICIENT_EVIDENCE"], candidates }) },
           ],
           text: { format: { type: "json_schema", name: "baromi_ai_review", strict: true, schema: reviewSchema } },
         }),
@@ -106,7 +108,7 @@ export async function runAiReviewJob(id: string) {
     if (exceedsAiCostCap(measuredUsage)) {
       throw new Error(`AI 비용 상한(${Number(process.env.BAROMI_AI_MAX_COST_USD).toFixed(6)} USD)을 초과했습니다.`);
     }
-    await store.aiReview.update({ where: { id }, data: { status: "COMPLETED", completedAt: new Date(), durationMs: Date.now() - startedAt, resultJson: JSON.stringify({ decisions }), usageJson: JSON.stringify(measuredUsage), error: null } });
+    await store.aiReview.update({ where: { id }, data: { status: "COMPLETED", completedAt: new Date(), durationMs: Date.now() - startedAt, resultJson: JSON.stringify({ promptVersion: AI_REVIEW_PROMPT_VERSION, decisions }), usageJson: JSON.stringify(measuredUsage), error: null } });
   } catch (error) {
     await store.aiReview.update({ where: { id }, data: { status: "FAILED", completedAt: new Date(), durationMs: Date.now() - startedAt, usageJson: measuredUsage ? JSON.stringify(measuredUsage) : undefined, error: error instanceof Error ? error.message.slice(0, 500) : "AI 정밀 분석에 실패했습니다." } }).catch(() => undefined);
   } finally { await store.$disconnect(); }
