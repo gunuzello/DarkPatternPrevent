@@ -20,6 +20,7 @@
 - [x] 수집 실패 유형 코드화(`FETCH_FAILED`, `PRODUCT_NOT_FOUND`, `DYNAMIC_RENDER_FAILED`, `DYNAMIC_JOURNEY_FAILED`, `AUTH_CHALLENGE`)
 - [x] 데이터베이스·증거 디렉터리 동시 백업·복구 명령
 - [x] 합성 평가 40건 및 문구 변형·정상 대조군 16건 반복 평가
+- [x] AI 후보의 개인정보 가림·증거 축소·프롬프트 버전·비용 상한 기록
 
 ## 실제 배포 전에 필요한 외부 검증
 
