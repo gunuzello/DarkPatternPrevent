@@ -108,10 +108,10 @@ async function clickAndSettle(page: Page, action: Locator) {
 /** Close a blocking modal only when its visible dialog exposes one unambiguous
  * dismiss control. Never press arbitrary overlays or marketing actions. */
 async function dismissBlockingDialog(page: Page) {
-  const dialogs = page.locator('[role="dialog"]:visible, [aria-modal="true"]:visible');
+  const dialogs = page.locator('[role="dialog"]:visible, [aria-modal="true"]:visible, div.fixed.inset-0:visible');
   for (let index = 0; index < Math.min(await dialogs.count(), 3); index++) {
     const dialog = dialogs.nth(index);
-    const close = dialog.getByRole("button", { name: /닫기|close|취소|나중에|아니요|×/i }).filter({ visible: true });
+    const close = dialog.getByRole("button", { name: /닫기|close|취소|나중에|아니요|×|dismiss/i }).filter({ visible: true });
     if (await close.count() !== 1) continue;
     await close.click({ timeout: 3_000 }).catch(() => undefined);
     await page.waitForTimeout(150);
