@@ -3,4 +3,14 @@ server:
 spring:
   application:
     name: baromi-backend
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/baromi}
+    username: ${DATABASE_USERNAME:baromi}
+    password: ${DATABASE_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
 
