@@ -15,6 +15,22 @@ export async function mirrorSpringShop(shopId: string, url: string, owner: strin
   finally { clearTimeout(timeout); }
 }
 
+export async function mirrorSpringScan(scan: { id: string; shopId: string; targetUrl: string; executionMode: string; viewport: string; purchasePath: string }, owner: string) {
+  const base = endpoint();
+  if (!base || !owner) return;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3_000);
+  try {
+    const response = await fetch(`${base}/api/v1/scans`, {
+      method: "POST", headers: { "content-type": "application/json", "x-baromi-owner": owner },
+      body: JSON.stringify({ id: scan.id, shopId: scan.shopId, targetUrl: scan.targetUrl, executionMode: scan.executionMode, viewport: scan.viewport, purchasePath: scan.purchasePath }),
+      signal: controller.signal,
+    });
+    if (!response.ok && response.status !== 409) console.warn(`Spring scan mirror failed: ${response.status}`);
+  } catch (error) { console.warn("Spring scan mirror unavailable", error instanceof Error ? error.message : error); }
+  finally { clearTimeout(timeout); }
+}
+
 /** Best-effort bridge during the Spring migration. The SQLite path remains authoritative until cutover. */
 export async function notifySpringScanStatus(scanId: string, status: "queued" | "running" | "partial" | "succeeded" | "failed" | "cancelled", stage?: string) {
   const base = endpoint();

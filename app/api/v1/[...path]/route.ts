@@ -14,7 +14,7 @@ import type { scanDemo } from "../../../../src/scan";
 import { fetchPublicHtml } from "../../../../src/public-html";
 import { createSiteVerification, hashToken, matchesVerification, verificationDnsPrefix, verificationFile, verificationName } from "../../../../src/site-verification";
 import { encryptCredentials } from "../../../../src/credential-vault";
-import { mirrorSpringShop, notifySpringScanStatus } from "../../../../src/spring-status";
+import { mirrorSpringScan, mirrorSpringShop, notifySpringScanStatus } from "../../../../src/spring-status";
 
 type Context = { params: Promise<{ path: string[] }> };
 type Report = Omit<Awaited<ReturnType<typeof scanDemo>>, "scenario"> & { scenario: string };
@@ -179,6 +179,7 @@ export async function POST(request: NextRequest, context: Context) {
     });
     // During the Spring migration, mirror the queue state without making the
     // legacy SQLite path depend on the new service being available.
+    await mirrorSpringScan({ id: scan.id, shopId: shop.id, targetUrl: target.url, executionMode: body.profile === "DYNAMIC" ? "DYNAMIC" : "STATIC", viewport: body.viewport, purchasePath }, session!);
     await notifySpringScanStatus(scan.id, "queued");
     return Response.json({ scanId: scan.id, status: scan.status, createdAt: scan.createdAt }, { status: 202 });
   }
