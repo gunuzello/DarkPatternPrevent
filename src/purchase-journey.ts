@@ -109,8 +109,8 @@ async function isCheckoutLike(page: Page) {
   const url = page.url();
   if (/(?:checkout|order|payment|buy)/i.test(new URL(url).pathname)) return true;
   const text = await page.locator("body").innerText().catch(() => "");
-  const hasCheckoutCopy = /(?:주문서|주문s*정보|결제s*정보|배송s*정보|checkout|payment|places+order)/i.test(text);
-  const hasCustomerForm = await page.locator('input, select, textarea').count() > 0;
+  const hasCheckoutCopy = /(?:주문서|주문\s*정보|결제\s*정보|배송\s*정보|checkout|payment|place\s+order)/i.test(text);
+  const hasCustomerForm = await page.locator('input:not([type="hidden"]), select, textarea').count() > 0;
   return hasCheckoutCopy && hasCustomerForm;
 }
 

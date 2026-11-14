@@ -316,6 +316,22 @@ test("구매 버튼이 일반 안내 화면으로 이동하면 주문서 도달�
   expect(result.blocker).toMatchObject({ code: "ACTION_FAILED", action: "DIRECT_BUY" });
 });
 
+test("경로명이 평범해도 주문·배송 정보와 입력 폼이 있으면 주문서로 확인한다", async ({ page }) => {
+  const { explorePurchaseJourney } = await import("../src/purchase-journey");
+  await page.route("https://copy.example/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const html = path === "/product"
+      ? `<button onclick="location='/basket'">담기</button>`
+      : path === "/basket"
+        ? `<button onclick="location='/next-step'">결제하기</button>`
+        : `<h1>배송 정보</h1><label>이메일<input type="email"></label>`;
+    return route.fulfill({ contentType: "text/html; charset=utf-8", body: html });
+  });
+  await page.goto("https://copy.example/product");
+  const result = await explorePurchaseJourney(page);
+  expect(result.reached).toBe("checkout");
+});
+
 test("사이트 확인 메타 태그는 속성 순서와 따옴표가 달라도 검증하고 위조 값은 거부한다", async () => {
   const { createSiteVerification, matchesVerification, verificationName } = await import("../src/site-verification");
   const verification = createSiteVerification();
