@@ -12,9 +12,11 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.TestPropertySource;
 
 @WebMvcTest(HealthController.class)
 @Import(HealthController.class)
+@TestPropertySource(properties = "baromi.web-origins=https://app.example")
 class HealthControllerTest {
     @Autowired MockMvc mvc;
     @MockBean JdbcTemplate jdbc;
@@ -36,5 +38,13 @@ class HealthControllerTest {
         mvc.perform(get("/api/v1/health/readiness"))
             .andExpect(status().isServiceUnavailable())
             .andExpect(jsonPath("$.status").value("not_ready"));
+    }
+
+    @Test
+    void configuredFrontendOriginCanCallApi() throws Exception {
+        mvc.perform(get("/api/v1/health")
+                .header("Origin", "https://app.example"))
+            .andExpect(status().isOk())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Access-Control-Allow-Origin", "https://app.example"));
     }
 }
