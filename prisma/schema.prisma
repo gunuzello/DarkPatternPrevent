@@ -58,8 +58,12 @@ model AiReview {
   provider       String?
   model          String?
   candidateCount Int       @default(0)
+  durationMs     Int?
   resultJson     String?
   usageJson      String?
+  operatorLabelsJson String?
+  labeledAt      DateTime?
+  labelSource    String?
   error          String?
 
   @@index([status, requestedAt])

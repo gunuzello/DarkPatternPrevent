@@ -160,7 +160,7 @@ async function isCartLike(page: Page) {
 
 async function discoverSurfaceDestinations(page: Page) {
   const origin = new URL(page.url()).origin;
-  return page.locator("a[href]").evaluateAll((anchors, expectedOrigin) => anchors.flatMap((anchor) => {
+  const links = await page.locator("a[href]").evaluateAll((anchors, expectedOrigin) => anchors.flatMap((anchor) => {
     const text = (anchor.textContent ?? anchor.getAttribute("aria-label") ?? "").replace(/\s+/g, " ").trim();
     const raw = anchor.getAttribute("href") ?? "";
     if (!text || !raw) return [];
@@ -175,9 +175,22 @@ async function discoverSurfaceDestinations(page: Page) {
             : /추천|인기|베스트|recommend|popular|best/i.test(text) ? "RECOMMENDATION"
               : /배송|교환|반품|환불|이용약관|개인정보|policy|shipping|return/i.test(text) ? "POLICY"
                 : /카테고리|상품목록|전체상품|category|catalog|shop\s*all/i.test(text) ? "CATALOG" : null;
-      return kind ? [{ kind, text, href: parsed.href }] : [];
+      return kind ? [{ kind, text, href: parsed.href, source: "LINK" as const }] : [];
     } catch { return []; }
   }), origin);
+  const buttons = await page.locator("button:visible, [role=button]:visible").evaluateAll((controls) => controls.flatMap((control) => {
+    const text = (control.textContent ?? control.getAttribute("aria-label") ?? control.getAttribute("title") ?? "").replace(/\s+/g, " ").trim();
+    if (!text) return [];
+    const kind = /로그인|회원가입|sign\s*in|log\s*in|account/i.test(text) ? "AUTH"
+      : /구독|멤버십|정기\s*결제|자동\s*(?:갱신|연장)|subscription|membership/i.test(text) ? "SUBSCRIPTION"
+      : /해지|탈퇴|환불|구독\s*취소|cancel|unsubscribe/i.test(text) ? "CANCELLATION"
+        : /쿠폰|할인코드|프로모션|coupon|promo/i.test(text) ? "COUPON"
+          : /추천|인기|베스트|후기|리뷰|recommend|popular|best|review/i.test(text) ? "RECOMMENDATION"
+            : /배송|교환|반품|환불|이용약관|개인정보|policy|shipping|return|exchange|terms|privacy/i.test(text) ? "POLICY"
+              : /카테고리|상품목록|전체상품|전체\s*보기|검색|가구|키친|패브릭|테크|향\/|category|catalog|shop\s*all|search/i.test(text) ? "CATALOG" : null;
+    return kind ? [{ kind, text, href: window.location.href, source: "BUTTON" as const }] : [];
+  }));
+  return [...links, ...buttons];
 }
 
 export type SurfaceObservation = {
@@ -187,27 +200,29 @@ export type SurfaceObservation = {
   status: number | null;
   title: string;
   text: string;
-  outcome: "OBSERVED" | "FETCH_FAILED" | "CROSS_ORIGIN";
+  source?: "LINK" | "BUTTON";
+  outcome: "OBSERVED" | "DISCOVERED" | "FETCH_FAILED" | "CROSS_ORIGIN";
 };
 
-async function inspectSurfaceDestinations(page: Page, destinations: { kind: SurfaceObservation["kind"]; href: string }[]): Promise<SurfaceObservation[]> {
+async function inspectSurfaceDestinations(page: Page, destinations: { kind: SurfaceObservation["kind"]; href: string; text?: string; source?: SurfaceObservation["source"] }[]): Promise<SurfaceObservation[]> {
   const origin = new URL(page.url()).origin;
-  return Promise.all(destinations.slice(0, 4).map(async (destination, index): Promise<SurfaceObservation> => {
+  return Promise.all(destinations.slice(0, 8).map(async (destination, index): Promise<SurfaceObservation> => {
+    if (destination.source === "BUTTON") return { evidenceId: `surface:${destination.kind.toLowerCase()}:${index}`, kind: destination.kind, url: destination.href, status: null, title: destination.text ?? "", text: `버튼형 표면 후보: ${destination.text ?? "이름 없음"}`, source: "BUTTON", outcome: "DISCOVERED" };
     if (new URL(destination.href).origin !== origin) {
-      return { evidenceId: `surface:${destination.kind.toLowerCase()}:${index}`, kind: destination.kind, url: destination.href, status: null, title: "", text: "", outcome: "CROSS_ORIGIN" };
+      return { evidenceId: `surface:${destination.kind.toLowerCase()}:${index}`, kind: destination.kind, url: destination.href, status: null, title: "", text: "", source: "LINK", outcome: "CROSS_ORIGIN" };
     }
     const probe = await page.context().newPage();
     try {
       const response = await probe.goto(destination.href, { waitUntil: "domcontentloaded", timeout: 3_500 });
       await probe.waitForTimeout(150);
       return {
-        evidenceId: `surface:${destination.kind.toLowerCase()}:${index}`, kind: destination.kind, url: destination.href, status: response?.status() ?? null,
+        evidenceId: `surface:${destination.kind.toLowerCase()}:${index}`, kind: destination.kind, url: destination.href, status: response?.status() ?? null, source: "LINK",
         title: await probe.title().catch(() => ""),
         text: (await probe.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 1_000),
         outcome: response?.ok() ? "OBSERVED" : "FETCH_FAILED",
       };
     } catch {
-      return { evidenceId: `surface:${destination.kind.toLowerCase()}:${index}`, kind: destination.kind, url: destination.href, status: null, title: "", text: "", outcome: "FETCH_FAILED" };
+      return { evidenceId: `surface:${destination.kind.toLowerCase()}:${index}`, kind: destination.kind, url: destination.href, status: null, title: "", text: "", source: "LINK", outcome: "FETCH_FAILED" };
     } finally {
       await probe.close().catch(() => {});
     }
@@ -245,11 +260,11 @@ export async function explorePurchaseJourney(
   let surfaceObservations: SurfaceObservation[] = [];
   const refreshSurface = async () => {
     const discovered = await discoverSurfaceDestinations(page);
-    const known = new Set(surfaceDestinations.map(({ href }) => href));
-    const fresh = discovered.filter(({ href }) => !known.has(href));
+    const known = new Set(surfaceDestinations.map(({ href, kind, text }) => `${kind}:${href}:${text}`));
+    const fresh = discovered.filter(({ href, kind, text }) => !known.has(`${kind}:${href}:${text}`));
     surfaceDestinations = [...surfaceDestinations, ...fresh].slice(0, 12);
     if (fresh.length) {
-      surfaceObservations = [...surfaceObservations, ...await inspectSurfaceDestinations(page, fresh.map(({ kind, href }) => ({ kind: kind as SurfaceObservation["kind"], href })))].slice(0, 12);
+      surfaceObservations = [...surfaceObservations, ...await inspectSurfaceDestinations(page, fresh.map(({ kind, href, text, source }) => ({ kind: kind as SurfaceObservation["kind"], href, text, source })))].slice(0, 24);
     }
   };
   await refreshSurface();

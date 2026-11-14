@@ -69,6 +69,7 @@ function validatedDecisions(value: unknown, candidates: Candidate[]): AiDecision
 
 export async function runAiReviewJob(id: string) {
   const store = db();
+  const startedAt = Date.now();
   try {
     const job = await store.aiReview.findUnique({ where: { id }, include: { scan: { select: { reportPath: true } } } });
     if (!job?.scan.reportPath) throw new Error("기본 진단 보고서가 없습니다.");
@@ -103,8 +104,8 @@ export async function runAiReviewJob(id: string) {
     const decisions = validatedDecisions(JSON.parse(text), candidates);
     if (!decisions.length) throw new Error("AI 응답에서 유효한 분석 결과를 읽지 못했습니다.");
     const usage = estimateAiUsage({ provider: new URL(endpoint).hostname, model, purpose: "post-report-dark-pattern-review", inputTokens: body.usage?.input_tokens ?? 0, outputTokens: body.usage?.output_tokens ?? 0 });
-    await store.aiReview.update({ where: { id }, data: { status: "COMPLETED", completedAt: new Date(), resultJson: JSON.stringify({ decisions }), usageJson: JSON.stringify(usage), error: null } });
+    await store.aiReview.update({ where: { id }, data: { status: "COMPLETED", completedAt: new Date(), durationMs: Date.now() - startedAt, resultJson: JSON.stringify({ decisions }), usageJson: JSON.stringify(usage), error: null } });
   } catch (error) {
-    await store.aiReview.update({ where: { id }, data: { status: "FAILED", completedAt: new Date(), error: error instanceof Error ? error.message.slice(0, 500) : "AI 정밀 분석에 실패했습니다." } }).catch(() => undefined);
+    await store.aiReview.update({ where: { id }, data: { status: "FAILED", completedAt: new Date(), durationMs: Date.now() - startedAt, error: error instanceof Error ? error.message.slice(0, 500) : "AI 정밀 분석에 실패했습니다." } }).catch(() => undefined);
   } finally { await store.$disconnect(); }
 }

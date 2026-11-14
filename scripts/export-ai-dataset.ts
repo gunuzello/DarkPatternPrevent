@@ -18,6 +18,7 @@ async function main() {
       const report = JSON.parse(await (await import("node:fs/promises")).readFile(job.scan.reportPath, "utf8")) as { reviewCandidates?: unknown[] };
       const result = JSON.parse(job.resultJson) as { decisions?: unknown[] };
       const decisions = result.decisions ?? [];
+      const operatorLabels = job.operatorLabelsJson ? JSON.parse(job.operatorLabelsJson) as { candidateId?: string; label?: string }[] : [];
       for (const decision of decisions) {
         if (!decision || typeof decision !== "object") continue;
         const candidateId = (decision as { candidateId?: unknown }).candidateId;
@@ -25,7 +26,7 @@ async function main() {
         rows.push(JSON.stringify({
           schemaVersion: 1, source: "baromi-ai-review", scanId: job.scanId, candidateId,
           targetHost: new URL(job.scan.targetUrl).hostname, executionMode: job.scan.executionMode,
-          candidate, prediction: decision, operatorLabel: null,
+          candidate, prediction: decision, operatorLabel: operatorLabels.find((item) => item.candidateId === candidateId)?.label ?? null,
           model: job.model, provider: job.provider, usage: job.usageJson ? JSON.parse(job.usageJson) : null,
         }));
       }

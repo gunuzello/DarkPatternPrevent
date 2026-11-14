@@ -208,6 +208,16 @@ export async function POST(request: NextRequest, context: Context) {
     });
     return Response.json({ id: job.id, status: job.status }, { status: 202 });
   }
+  if (resource === "scans" && id && action === "ai-review-labels" && route.length === 3) {
+    const scan = await db().scan.findFirst({ where: { id, shop: { ownerHash } }, select: { aiReview: true } });
+    if (!scan?.aiReview) return notFound();
+    const labels = body?.labels;
+    if (!Array.isArray(labels) || labels.length > 40 || labels.some((item: unknown) => !item || typeof item !== "object" || typeof (item as { candidateId?: unknown }).candidateId !== "string" || !["LIKELY_RISK", "NEEDS_REVIEW", "LIKELY_BENIGN", "INSUFFICIENT_EVIDENCE"].includes((item as { label?: string }).label ?? ""))) {
+      return error("후보 ID와 허용된 라벨이 필요합니다.", 400);
+    }
+    const saved = await db().aiReview.update({ where: { id: scan.aiReview.id }, data: { operatorLabelsJson: JSON.stringify(labels), labeledAt: new Date(), labelSource: "OPERATOR" } });
+    return Response.json({ id: saved.id, status: saved.status, labeledAt: saved.labeledAt });
+  }
   if (resource === "scans" && id && action === "cancel" && route.length === 3) {
     const where = { id, shop: { ownerHash } };
     const running = await db().scan.updateMany({
@@ -326,7 +336,8 @@ export async function GET(request: NextRequest, context: Context) {
     if (active) return [kind, "PENDING"];
     const observations = surfaceObservations.filter((item) => item.kind === kind);
     return [kind, observations.some((item) => item.outcome === "OBSERVED") ? "COVERED"
-      : observations.length ? "BLOCKED" : "NOT_FOUND"];
+      : observations.some((item) => item.outcome === "DISCOVERED") ? "DISCOVERED"
+        : observations.length ? "BLOCKED" : "NOT_FOUND"];
   }));
   if (!action) {
     return Response.json({
@@ -355,9 +366,10 @@ export async function GET(request: NextRequest, context: Context) {
     const aiReview = scan.aiReview ? {
       id: scan.aiReview.id, status: scan.aiReview.status, requestedAt: scan.aiReview.requestedAt,
       completedAt: scan.aiReview.completedAt, provider: scan.aiReview.provider, model: scan.aiReview.model,
-      candidateCount: scan.aiReview.candidateCount, error: scan.aiReview.error,
+      candidateCount: scan.aiReview.candidateCount, durationMs: scan.aiReview.durationMs, error: scan.aiReview.error,
       result: scan.aiReview.resultJson ? JSON.parse(scan.aiReview.resultJson) : null,
       usage: scan.aiReview.usageJson ? JSON.parse(scan.aiReview.usageJson) : null,
+      operatorLabels: scan.aiReview.operatorLabelsJson ? JSON.parse(scan.aiReview.operatorLabelsJson) : null,
     } : null;
     const response = Response.json({ ...report, viewport: scan.viewport, purchasePath: scan.purchasePath,
       durationMs: scan.durationMs,

@@ -3,7 +3,7 @@ export const diagnosticSurfaceKinds = [
 ] as const;
 
 export type DiagnosticSurfaceKind = typeof diagnosticSurfaceKinds[number];
-export type DiagnosticSurfaceStatus = "COVERED" | "BLOCKED" | "NOT_FOUND" | "PENDING" | "SKIPPED";
+export type DiagnosticSurfaceStatus = "COVERED" | "DISCOVERED" | "BLOCKED" | "NOT_FOUND" | "PENDING" | "SKIPPED";
 
 export const diagnosticSurfaceLabels: Record<DiagnosticSurfaceKind, string> = {
   CATALOG: "상품 목록·카테고리·검색",

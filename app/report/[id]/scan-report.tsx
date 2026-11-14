@@ -45,7 +45,7 @@ type Report = {
   aiEligible: boolean;
   aiReview?: {
     id: string; status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED"; provider?: string | null; model?: string | null;
-    candidateCount: number; error?: string | null;
+    candidateCount: number; durationMs?: number | null; error?: string | null;
     result?: { decisions?: { candidateId: string; label: string; confidence: number; rationale: string; suggestedRule?: string | null }[] } | null;
     usage?: { inputTokens: number; outputTokens: number; estimatedCostUsd: number } | null;
   } | null;
@@ -105,7 +105,7 @@ export function ScanReport({ id }: { id: string }) {
       <h2>별도 탐색 영역</h2>
       <p>목록·로그인·구독·해지·정책·쿠폰·추천 화면은 구매 단계와 별도로 탐색합니다.</p>
       <ul>{diagnosticSurfaceKinds.map((kind) => <li key={kind}>{diagnosticSurfaceLabels[kind]} · {
-        report.surfaceCoverage?.[kind] === "COVERED" ? "검사 완료" : report.surfaceCoverage?.[kind] === "BLOCKED" ? "접근 실패" : report.surfaceCoverage?.[kind] === "SKIPPED" ? "동적 진단에서 확인" : "경로 미발견"
+        report.surfaceCoverage?.[kind] === "COVERED" ? "검사 완료" : report.surfaceCoverage?.[kind] === "DISCOVERED" ? "후보 발견·상세 미검사" : report.surfaceCoverage?.[kind] === "BLOCKED" ? "접근 실패" : report.surfaceCoverage?.[kind] === "SKIPPED" ? "동적 진단에서 확인" : "경로 미발견"
       }</li>)}</ul>
       {report.explorationBlocker && <p role="status">탐색 중단: {stageLabels[report.explorationBlocker.stage]}에서 {report.explorationBlocker.action === "ADD_TO_CART" ? "장바구니 담기" : report.explorationBlocker.action === "DIRECT_BUY" ? "바로구매" : "주문서 이동"} 동작을 {report.explorationBlocker.code === "LOGIN_REQUIRED" ? "로그인 화면으로 판단했습니다. 승인된 테스트 계정 또는 로그인 세션이 필요합니다." : report.explorationBlocker.code === "ACTION_AMBIGUOUS" ? `하나로 확정하지 못했습니다(후보 ${report.explorationBlocker.candidateCount}개).` : report.explorationBlocker.code === "ACTION_FAILED" ? "실행했지만 화면 전환을 확인하지 못했습니다." : "찾지 못했습니다."}</p>}
       {report.surfaceObservations?.length ? <section aria-label="추가 흐름 관찰">
@@ -127,7 +127,7 @@ export function ScanReport({ id }: { id: string }) {
         <p>기본 진단 AI 비용 · {(report.aiUsage?.estimatedCostUsd ?? 0).toFixed(6)} USD · 호출 {report.aiUsage?.calls ?? 0}회</p>
         {!report.reviewCandidates?.length ? <p>현재 보고서에는 AI로 넘길 추가 검토 후보가 없습니다.</p>
           : report.aiReview?.status === "COMPLETED" ? <>
-            <p>분석 완료 · {report.aiReview.model ?? "모델 정보 없음"} · 후보 {report.aiReview.candidateCount}건 · 비용 {(report.aiReview.usage?.estimatedCostUsd ?? 0).toFixed(6)} USD</p>
+            <p>분석 완료 · {report.aiReview.model ?? "모델 정보 없음"} · 후보 {report.aiReview.candidateCount}건 · {(report.aiReview.durationMs ?? 0) / 1000}초 · 비용 {(report.aiReview.usage?.estimatedCostUsd ?? 0).toFixed(6)} USD</p>
             <ul>{report.aiReview.result?.decisions?.map((decision) => <li key={decision.candidateId}>{decision.label} · 신뢰도 {(decision.confidence * 100).toFixed(0)}% · {decision.rationale}</li>)}</ul>
           </> : report.aiReview?.status === "FAILED" ? <><p role="alert">AI 정밀 분석 실패 · {report.aiReview.error}</p>{report.aiEligible && <button disabled={pending} onClick={async () => { setPending(true); try { await post(`scans/${id}/ai-review`, {}); window.location.reload(); } catch (cause) { setError(cause instanceof Error ? cause.message : "AI 정밀 분석을 요청하지 못했습니다."); setPending(false); } }}>다시 요청</button>}</>
             : report.aiReview ? <p role="status">AI 정밀 분석 {report.aiReview.status === "QUEUED" ? "대기 중" : "진행 중"} · 기본 보고서는 지금 바로 이용할 수 있습니다.</p>

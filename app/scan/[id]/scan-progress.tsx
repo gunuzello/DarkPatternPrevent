@@ -87,7 +87,7 @@ export function ScanProgress({ id }: { id: string }) {
         <div className="stage-list">{diagnosticSurfaceKinds.map((kind) => {
           const status = scan.surfaceCoverage?.[kind] ?? (active ? "PENDING" : "NOT_FOUND");
           return <div className={`stage-row ${status.toLowerCase()}`} key={kind}><span className="stage-mark"/><strong>{diagnosticSurfaceLabels[kind]}</strong><span>{
-            status === "COVERED" ? "검사 완료" : status === "BLOCKED" ? "접근 실패" : status === "NOT_FOUND" ? "경로 미발견" : status === "SKIPPED" ? "동적 진단에서 확인" : "탐색 대기"
+            status === "COVERED" ? "검사 완료" : status === "DISCOVERED" ? "후보 발견·상세 미검사" : status === "BLOCKED" ? "접근 실패" : status === "NOT_FOUND" ? "경로 미발견" : status === "SKIPPED" ? "동적 진단에서 확인" : "탐색 대기"
           }</span></div>;
         })}</div>
       </section>

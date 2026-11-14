@@ -95,7 +95,7 @@ export function ScanForm() {
           <li>파일 업로드: <code>{verification.filePath}</code>에 토큰 값 업로드</li>
           <li>DNS TXT: <code>{verification.dnsRecord}</code></li>
         </ol>
-        <button type="button" className="action" onClick={verifyAndScan} disabled={pending}>{pending ? "확인 중…" : "확인 후 동적 진단 시작"}</button>
+        <button type="button" className="action" onClick={verifyAndScan} disabled={pending}>{pending ? "확인 중…" : "소유 확인 후 동적 구매 흐름까지 검사"}</button>
       </section>}
     </form>
   );

@@ -22,12 +22,14 @@ const hardTimeoutMs = Number.isFinite(requestedHardTimeout) ? Math.min(Math.max(
 
 type ScanSummary = {
   scanStatus: string; reached: string | null; collectionFailure: string | null; collectionFailureCode: string | null;
-  explorationBlocker: unknown; stageTimingsMs: Record<string, number>; durationMs: number; findings: string[];
+  explorationBlocker: unknown; stageTimingsMs: Record<string, number>; durationMs: number;
+  surfaceObservations: { kind: string; outcome: string; source?: string }[]; findings: string[];
 };
 async function summarize(reportPath: string): Promise<ScanSummary> {
   const report = JSON.parse(await readFile(reportPath, "utf8")) as {
     scanStatus?: string; snapshots?: { stage: string }[]; collectionFailure?: string | null; collectionFailureCode?: string | null;
     explorationBlocker?: unknown; stageTimingsMs?: Record<string, number>; durationMs?: number;
+    surfaceObservations?: { kind: string; outcome: string; source?: string }[];
     findings?: { type: string; stage: string; reason: string }[];
   };
   return {
@@ -38,6 +40,7 @@ async function summarize(reportPath: string): Promise<ScanSummary> {
     explorationBlocker: report.explorationBlocker ?? null,
     stageTimingsMs: report.stageTimingsMs ?? {},
     durationMs: report.durationMs ?? 0,
+    surfaceObservations: report.surfaceObservations ?? [],
     findings: (report.findings ?? []).map(({ type, stage, reason }) => `${type}:${stage}:${reason}`).sort(),
   };
 }
