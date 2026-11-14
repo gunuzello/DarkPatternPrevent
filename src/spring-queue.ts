@@ -23,3 +23,22 @@ export async function claimSpringScan(): Promise<ClaimedScan | null> {
     clearTimeout(timeout);
   }
 }
+
+export async function recoverSpringScans(staleBefore: Date): Promise<number> {
+  const base = process.env.BAROMI_SPRING_API_URL?.replace(/\/$/, "");
+  const token = process.env.BAROMI_WORKER_TOKEN;
+  if (!base || !token || process.env.BAROMI_SPRING_QUEUE_ENABLED !== "true") return 0;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3_000);
+  try {
+    const response = await fetch(`${base}/api/v1/scans/recover`, {
+      method: "POST", headers: { "content-type": "application/json", "x-baromi-worker": token },
+      body: JSON.stringify({ staleBefore: staleBefore.toISOString() }), signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`Spring queue recovery failed: ${response.status}`);
+    const result = await response.json() as { recovered?: number };
+    return result.recovered ?? 0;
+  } finally {
+    clearTimeout(timeout);
+  }
+}

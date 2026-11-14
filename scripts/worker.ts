@@ -2,16 +2,21 @@ import { setTimeout as delay } from "node:timers/promises";
 import { db } from "../src/db";
 import { runScanJob } from "../src/scan-job";
 import { notifySpringScanStatus } from "../src/spring-status";
-import { claimSpringScan } from "../src/spring-queue";
+import { claimSpringScan, recoverSpringScans } from "../src/spring-queue";
 
 async function main() {
   const store = db();
   let stopping = false;
+  let lastSpringRecovery = 0;
   process.once("SIGINT", () => { stopping = true; });
   process.once("SIGTERM", () => { stopping = true; });
 
   try {
     while (!stopping) {
+      if (Date.now() - lastSpringRecovery >= 30_000) {
+        lastSpringRecovery = Date.now();
+        await recoverSpringScans(new Date(Date.now() - 6 * 60_000)).catch((error) => console.warn(error instanceof Error ? error.message : error));
+      }
       const springJob = await claimSpringScan().catch((error) => { console.warn(error instanceof Error ? error.message : error); return null; });
       if (springJob) {
         const started = await store.scan.updateMany({ where: { id: springJob.scanId, status: "QUEUED" }, data: { status: "RUNNING", startedAt: new Date(), durationMs: null } });
