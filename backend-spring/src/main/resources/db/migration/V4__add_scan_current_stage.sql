@@ -1,0 +1,1 @@
+ALTER TABLE "Scan" ADD COLUMN current_stage VARCHAR(32);

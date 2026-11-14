@@ -1,7 +1,7 @@
 package com.baromi.backend.scan;
 import com.baromi.backend.shop.ShopController;
 import com.baromi.backend.shop.ShopRepository;
-import java.time.Instant; import java.util.Map; import java.util.UUID;
+import java.time.Instant; import java.util.LinkedHashMap; import java.util.Map; import java.util.UUID;
 import org.springframework.http.*; import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 @RestController @RequestMapping("/api/v1/scans")
@@ -18,16 +18,18 @@ public class ScanController {
   if(workerToken.isBlank()||!workerToken.equals(token)||request==null||!isAllowed(request.status())) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error","워커 인증이 필요합니다."));
   var existing = scans.findById(id);
   if (existing.isPresent()) {
-   var scan = existing.get(); scan.setStatus(request.status()); scans.save(scan);
-   return ResponseEntity.ok(Map.of("scanId",scan.getId(),"status",scan.getStatus()));
+   var scan = existing.get(); scan.setStatus(request.status()); scan.setCurrentStage(request.stage()); scans.save(scan);
+   return ResponseEntity.ok(statusBody(scan));
   }
-  var imported = scans.save(new ScanEntity(id, null, request.status(), Instant.now()));
-  return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of("scanId", imported.getId(), "status", imported.getStatus(), "imported", true));
+  var imported = scans.save(new ScanEntity(id, null, request.status(), Instant.now())); imported.setCurrentStage(request.stage()); imported = scans.save(imported);
+  var body = statusBody(imported); body.put("imported", true);
+  return ResponseEntity.status(HttpStatus.ACCEPTED).body(body);
  }
  @GetMapping("/{id}") public ResponseEntity<?> get(@RequestHeader("X-Baromi-Owner") String owner,@PathVariable String id){
-  return scans.findById(id).filter(s->shops.findByIdAndOwnerHash(s.getShopId(),ShopController.ownerHashForApi(owner)).isPresent()).<ResponseEntity<?>>map(s->ResponseEntity.ok(Map.of("scanId",s.getId(),"shopId",s.getShopId(),"status",s.getStatus()))).orElseGet(()->ResponseEntity.notFound().build());
+  return scans.findById(id).filter(s->s.getShopId()!=null && shops.findByIdAndOwnerHash(s.getShopId(),ShopController.ownerHashForApi(owner)).isPresent()).<ResponseEntity<?>>map(s->{ var body=statusBody(s); body.put("shopId",s.getShopId()); return ResponseEntity.ok(body); }).orElseGet(()->ResponseEntity.notFound().build());
  }
  public record CreateScanRequest(String shopId) {}
- public record StatusRequest(String status) {}
+  public record StatusRequest(String status, String stage) {}
+ private static LinkedHashMap<String,Object> statusBody(ScanEntity scan){ var body=new LinkedHashMap<String,Object>(); body.put("scanId",scan.getId()); body.put("status",scan.getStatus()); body.put("currentStage",scan.getCurrentStage()); return body; }
  private static boolean isAllowed(String status){return switch(status){case "queued","running","partial","succeeded","failed","cancelled" -> true; default -> false;};}
 }

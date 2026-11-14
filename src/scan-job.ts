@@ -46,6 +46,7 @@ export async function runScanJob(id: string, targetUrl: string) {
       let progress = 0;
       const onStage = async (snapshot: { stage: string }) => {
         const scan = await store.scan.update({ where: { id }, data: { progress: ++progress, currentStage: snapshot.stage } });
+        await notifySpringScanStatus(id, "running", snapshot.stage);
         if (scan.cancelRequested) throw new Error("진단 중단");
       };
       let report;
