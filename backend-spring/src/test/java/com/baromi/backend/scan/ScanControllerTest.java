@@ -54,6 +54,19 @@ class ScanControllerTest {
     }
 
     @Test
+    void terminalScanCannotMoveBackToRunning() throws Exception {
+        var scan = new ScanEntity("scan-terminal", "shop-1", "succeeded", Instant.now());
+        when(scans.findById("scan-terminal")).thenReturn(Optional.of(scan));
+
+        mvc.perform(patch("/api/v1/scans/scan-terminal/status")
+                .header("X-Baromi-Worker", "test-worker-token")
+                .contentType("application/json")
+                .content("{\"status\":\"running\"}"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.status").value("succeeded"));
+    }
+
+    @Test
     void workerCanClaimQueuedScanWithExecutionConfig() throws Exception {
         var scan = new ScanEntity("scan-2", "shop-1", "queued", Instant.now(), "https://shop.example/product", "DYNAMIC", "DESKTOP", "CART");
         when(scans.findFirstByStatusOrderByCreatedAtAscIdAsc("queued")).thenReturn(Optional.of(scan));

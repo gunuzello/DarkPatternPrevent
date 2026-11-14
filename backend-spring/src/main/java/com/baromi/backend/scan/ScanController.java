@@ -20,7 +20,9 @@ public class ScanController {
   if(workerToken.isBlank()||!workerToken.equals(token)||request==null||!isAllowed(request.status())) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error","워커 인증이 필요합니다."));
   var existing = scans.findById(id);
   if (existing.isPresent()) {
-   var scan = existing.get(); scan.setStatus(request.status()); scan.setCurrentStage(request.stage()); scans.save(scan);
+   var scan = existing.get();
+   if (!canTransition(scan.getStatus(), request.status())) return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error","허용되지 않는 진단 상태 전이입니다.","status",scan.getStatus()));
+   scan.setStatus(request.status()); scan.setCurrentStage(request.stage()); scans.save(scan);
    return ResponseEntity.ok(statusBody(scan));
   }
   var imported = scans.save(new ScanEntity(id, null, request.status(), Instant.now())); imported.setCurrentStage(request.stage()); imported = scans.save(imported);
@@ -54,4 +56,14 @@ public class ScanController {
  public record RecoverRequest(Instant staleBefore) {}
  private static LinkedHashMap<String,Object> statusBody(ScanEntity scan){ var body=new LinkedHashMap<String,Object>(); body.put("scanId",scan.getId()); body.put("status",scan.getStatus()); body.put("currentStage",scan.getCurrentStage()); return body; }
  private static boolean isAllowed(String status){return switch(status){case "queued","running","partial","succeeded","failed","cancelled" -> true; default -> false;};}
+ private static boolean canTransition(String from,String to){
+  if(from.equals(to)) return true;
+  return switch(from){
+   case "queued" -> to.equals("running") || to.equals("failed") || to.equals("cancelled");
+   case "running" -> to.equals("partial") || to.equals("succeeded") || to.equals("failed") || to.equals("cancelled");
+   case "partial" -> to.equals("running") || to.equals("succeeded") || to.equals("failed") || to.equals("cancelled");
+   case "succeeded","failed","cancelled" -> false;
+   default -> false;
+  };
+ }
 }
