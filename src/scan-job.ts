@@ -35,7 +35,13 @@ export async function runScanJob(id: string, targetUrl: string) {
         throw error;
       }
     }
-    const browserLaunchOptions = { timeout: 20_000, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) };
+    const browserLaunchOptions = {
+      timeout: 20_000,
+      headless: true,
+      // Keep Chromium usable in container/CI workers where /dev/shm is small.
+      args: ["--disable-dev-shm-usage"],
+      ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}),
+    };
     let browser = await chromium.launch(browserLaunchOptions);
     const proxy = requested.executionMode === "DYNAMIC"
       ? await startSafeBrowserProxy().catch(async (error) => { await browser.close(); throw error; })
