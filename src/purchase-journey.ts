@@ -105,6 +105,19 @@ async function clickAndSettle(page: Page, action: Locator) {
   await page.waitForLoadState("networkidle", { timeout: 2_000 }).catch(() => {});
 }
 
+/** Close a blocking modal only when its visible dialog exposes one unambiguous
+ * dismiss control. Never press arbitrary overlays or marketing actions. */
+async function dismissBlockingDialog(page: Page) {
+  const dialogs = page.locator('[role="dialog"]:visible, [aria-modal="true"]:visible');
+  for (let index = 0; index < Math.min(await dialogs.count(), 3); index++) {
+    const dialog = dialogs.nth(index);
+    const close = dialog.getByRole("button", { name: /닫기|close|취소|나중에|아니요|×/i }).filter({ visible: true });
+    if (await close.count() !== 1) continue;
+    await close.click({ timeout: 3_000 }).catch(() => undefined);
+    await page.waitForTimeout(150);
+  }
+}
+
 async function isCheckoutLike(page: Page) {
   const url = page.url();
   if (/(?:checkout|order|payment|buy)/i.test(new URL(url).pathname)) return true;
@@ -257,6 +270,7 @@ export async function explorePurchaseJourney(
 
   const cartAction = await actionCandidate(page, openCart);
   if (cartAction.action) {
+    await dismissBlockingDialog(page);
     await clickAndSettle(page, cartAction.action);
   }
   stage = "cart";
