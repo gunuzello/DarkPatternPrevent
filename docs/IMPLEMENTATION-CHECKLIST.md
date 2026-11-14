@@ -30,13 +30,14 @@
 - [x] 사전선택 규칙
 - [x] 순차공개 가격 원장과 화면/API 비교
 - [x] 긴급성·희소성 검토 후보
+- [x] 공정위 가이드라인 16개 유형의 규칙·검토 후보 연결
 - [x] 스크린샷·DOM·좌표·가격 응답 증거
 - [ ] 승인된 외부 테스트몰의 반복 실행 측정
 
 ## 검증·운영 준비
 
 - [x] Spring 단위/웹 테스트
-- [x] Playwright 36개 회귀 테스트
+- [x] Playwright 40개 회귀 테스트
 - [x] TypeScript 타입 검사와 Next 빌드
 - [x] npm 런타임 취약점 감사
 - [x] Spring liveness/readiness
