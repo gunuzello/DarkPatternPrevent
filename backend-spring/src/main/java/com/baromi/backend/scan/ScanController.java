@@ -34,11 +34,18 @@ public class ScanController {
   var body = statusBody(scan); body.put("shopId",scan.getShopId()); body.put("targetUrl",scan.getTargetUrl()); body.put("executionMode",scan.getExecutionMode()); body.put("viewport",scan.getViewport()); body.put("purchasePath",scan.getPurchasePath()); body.put("startedAt",scan.getStartedAt());
   return ResponseEntity.ok(body);
  }
+ @Transactional @PostMapping("/recover") public ResponseEntity<?> recover(@RequestHeader("X-Baromi-Worker") String token,@RequestBody RecoverRequest request){
+  if(workerToken.isBlank()||!workerToken.equals(token)||request==null||request.staleBefore()==null) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error","워커 인증과 staleBefore가 필요합니다."));
+  var stale = scans.findByStatusAndStartedAtBefore("running", request.staleBefore());
+  stale.forEach(scan -> { scan.setStatus("failed"); scans.save(scan); });
+  return ResponseEntity.ok(Map.of("recovered", stale.size(), "staleBefore", request.staleBefore()));
+ }
  @GetMapping("/{id}") public ResponseEntity<?> get(@RequestHeader("X-Baromi-Owner") String owner,@PathVariable String id){
   return scans.findById(id).filter(s->s.getShopId()!=null && shops.findByIdAndOwnerHash(s.getShopId(),ShopController.ownerHashForApi(owner)).isPresent()).<ResponseEntity<?>>map(s->{ var body=statusBody(s); body.put("shopId",s.getShopId()); return ResponseEntity.ok(body); }).orElseGet(()->ResponseEntity.notFound().build());
  }
  public record CreateScanRequest(String shopId, String targetUrl, String executionMode, String viewport, String purchasePath) {}
   public record StatusRequest(String status, String stage) {}
+ public record RecoverRequest(Instant staleBefore) {}
  private static LinkedHashMap<String,Object> statusBody(ScanEntity scan){ var body=new LinkedHashMap<String,Object>(); body.put("scanId",scan.getId()); body.put("status",scan.getStatus()); body.put("currentStage",scan.getCurrentStage()); return body; }
  private static boolean isAllowed(String status){return switch(status){case "queued","running","partial","succeeded","failed","cancelled" -> true; default -> false;};}
 }
