@@ -56,7 +56,10 @@ export function collectSurfaceReviewCandidates(observations: SurfaceObservation[
     evidenceIds: [item.evidenceId],
   }));
   const hasObservedSubscription = observations.some((item) => item.kind === "SUBSCRIPTION" && item.outcome === "OBSERVED");
-  const hasCancellation = observations.some((item) => item.kind === "CANCELLATION");
+  // A discovered URL is not evidence that the cancellation flow was actually
+  // reachable. Failed and cross-origin probes must still leave the missing-
+  // cancellation review candidate visible.
+  const hasCancellation = observations.some((item) => item.kind === "CANCELLATION" && item.outcome === "OBSERVED");
   if (hasObservedSubscription && !hasCancellation) {
     candidates.push({
       id: "review:surface:cancellation:missing", kind: "SURFACE_FLOW", stage: "surface",

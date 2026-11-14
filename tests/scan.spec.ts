@@ -446,6 +446,15 @@ test("모호한 비용 문구는 자동 판정 대신 제한된 검토 후보로
   expect(candidates).toEqual([expect.objectContaining({ kind: "FEE_SEMANTICS", evidenceIds: ["evidence:product"] })]);
 });
 
+test("실패한 해지 경로는 구독이 있어도 미검사 검토 후보로 남긴다", async () => {
+  const { collectSurfaceReviewCandidates } = await import("../src/review-candidates");
+  const candidates = collectSurfaceReviewCandidates([
+    { evidenceId: "surface:subscription:0", kind: "SUBSCRIPTION", url: "https://shop.example.com/membership", status: 200, title: "멤버십", text: "자동 갱신", outcome: "OBSERVED" },
+    { evidenceId: "surface:cancellation:1", kind: "CANCELLATION", url: "https://shop.example.com/cancel", status: 403, title: "", text: "", outcome: "FETCH_FAILED" },
+  ]);
+  expect(candidates.some(({ id }) => id === "review:surface:cancellation:missing")).toBe(true);
+});
+
 test("목록에서 이미 같은 필수 비용을 공개했다면 뒤늦은 가격 공개로 오탐하지 않는다", async () => {
   const { detect } = await import("../src/rules");
   const bounds = { x: 0, y: 0, width: 100, height: 20 };
