@@ -1,5 +1,20 @@
 const endpoint = () => process.env.BAROMI_SPRING_API_URL?.replace(/\/$/, "");
 
+export async function mirrorSpringShop(shopId: string, url: string, owner: string) {
+  const base = endpoint();
+  if (!base || !owner) return;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3_000);
+  try {
+    const response = await fetch(`${base}/api/v1/shops`, {
+      method: "POST", headers: { "content-type": "application/json", "x-baromi-owner": owner },
+      body: JSON.stringify({ id: shopId, url, consent: true }), signal: controller.signal,
+    });
+    if (!response.ok && response.status !== 409) console.warn(`Spring shop mirror failed: ${response.status}`);
+  } catch (error) { console.warn("Spring shop mirror unavailable", error instanceof Error ? error.message : error); }
+  finally { clearTimeout(timeout); }
+}
+
 /** Best-effort bridge during the Spring migration. The SQLite path remains authoritative until cutover. */
 export async function notifySpringScanStatus(scanId: string, status: "queued" | "running" | "partial" | "succeeded" | "failed" | "cancelled", stage?: string) {
   const base = endpoint();

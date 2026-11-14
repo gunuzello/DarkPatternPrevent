@@ -14,7 +14,7 @@ import type { scanDemo } from "../../../../src/scan";
 import { fetchPublicHtml } from "../../../../src/public-html";
 import { createSiteVerification, hashToken, matchesVerification, verificationDnsPrefix, verificationFile, verificationName } from "../../../../src/site-verification";
 import { encryptCredentials } from "../../../../src/credential-vault";
-import { notifySpringScanStatus } from "../../../../src/spring-status";
+import { mirrorSpringShop, notifySpringScanStatus } from "../../../../src/spring-status";
 
 type Context = { params: Promise<{ path: string[] }> };
 type Report = Omit<Awaited<ReturnType<typeof scanDemo>>, "scenario"> & { scenario: string };
@@ -73,6 +73,7 @@ export async function POST(request: NextRequest, context: Context) {
         dnsRecord: `${verificationDnsPrefix}.${new URL(shop.url).hostname} TXT ${verification.token}`,
       } : null,
     }, { status: 201 });
+    await mirrorSpringShop(shop.id, shop.url, token);
     if (!session) response.cookies.set(cookie, token, {
       httpOnly: true, sameSite: "strict", path: "/", maxAge: 24 * 60 * 60,
       secure: request.nextUrl.protocol === "https:",

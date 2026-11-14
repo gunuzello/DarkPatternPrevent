@@ -30,7 +30,11 @@ public class ShopController {
         if (owner.isBlank() || request == null || request.consent() != Boolean.TRUE || !isPublicHttps(request.url())) {
             return ResponseEntity.badRequest().body(Map.of("error", "공개 HTTPS 쇼핑몰 URL과 검사 동의가 필요합니다."));
         }
-        var entity = shops.save(new ShopEntity(UUID.randomUUID().toString(), request.url(), ownerHashForApi(owner), Instant.now()));
+        if (request.id() != null) {
+            var existing = shops.findByIdAndOwnerHash(request.id(), ownerHashForApi(owner));
+            if (existing.isPresent()) return ResponseEntity.ok(Map.of("shopId", existing.get().getId(), "url", existing.get().getUrl(), "mirrored", true));
+        }
+        var entity = shops.save(new ShopEntity(request.id() == null ? UUID.randomUUID().toString() : request.id(), request.url(), ownerHashForApi(owner), Instant.now()));
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("shopId", entity.getId(), "url", entity.getUrl()));
     }
 
@@ -41,7 +45,7 @@ public class ShopController {
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    public record CreateShopRequest(String url, Boolean consent) {}
+    public record CreateShopRequest(String id, String url, Boolean consent) {}
 
     public static String ownerHashForApi(String owner) {
         try {
