@@ -95,4 +95,10 @@ export const textValidationCases = [
   signalCase(35, "거절 선택지를 찾기 어려운 배치", "MISDIRECTED_HIERARCHY", "<p>거절 버튼은 찾기 어려워요</p>"),
   signalCase(36, "탈퇴 경로 확인 필요", "CANCELLATION_OBSTRUCTION", "<p>회원 탈퇴</p>"),
   signalCase(37, "월 납부 기준만 제시", "PRICE_COMPARISON_OBSTRUCTION", "<p>월 납부 금액만 표시</p>"),
+  signalCase(38, "조건을 뒤늦게 알려주는 가격", "HIDDEN_INFO", "<p>조건 별도</p>"),
+  signalCase(39, "근거가 불명확한 할인 강조", "FALSE_DISCOUNT", "<p>정가 50% 할인</p>"),
+  signalCase(40, "광고 표기가 붙은 추천 영역", "DISGUISED_AD", "<p>광고 포함</p>"),
+  signalCase(41, "거부 선택지를 불리하게 표현", "CONFIRM_SHAMING", "<p>혜택을 포기하시겠어요?</p>"),
+  signalCase(42, "주문 전 로그인 요구", "FORCED_ACTION", "<p>로그인 후 주문할 수 있어요</p>"),
+  signalCase(43, "자동 갱신 조건 노출", "HIDDEN_SUBSCRIPTION", "<p>자동 갱신 결제</p>"),
 ] satisfies DetectionCase[];
