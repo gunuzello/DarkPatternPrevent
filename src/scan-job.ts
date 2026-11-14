@@ -52,11 +52,20 @@ export async function runScanJob(id: string, targetUrl: string) {
       };
       let report;
       try {
-        report = target.scenario === "public"
+        const scanPromise: Promise<any> = target.scenario === "public"
           ? requested.executionMode === "DYNAMIC" && proxy
-            ? await scanDynamicPublicShop(browser, target.url, directory, proxy.server, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", onStage, requested.purchasePath === "DIRECT" ? "DIRECT" : "CART", credentials)
-            : await scanPublicShop(browser, target.url, directory, onStage, undefined, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", requested.purchasePath === "DIRECT" ? "DIRECT" : "CART")
-          : await scanDemo(browser, new URL(target.url).origin, target.scenario, directory, onStage, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", requested.purchasePath === "DIRECT" ? "DIRECT" : "CART");
+            ? scanDynamicPublicShop(browser, target.url, directory, proxy.server, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", onStage, requested.purchasePath === "DIRECT" ? "DIRECT" : "CART", credentials)
+            : scanPublicShop(browser, target.url, directory, onStage, undefined, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", requested.purchasePath === "DIRECT" ? "DIRECT" : "CART")
+          : scanDemo(browser, new URL(target.url).origin, target.scenario, directory, onStage, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", requested.purchasePath === "DIRECT" ? "DIRECT" : "CART");
+        const dynamicTimeoutMs = requested.executionMode === "DYNAMIC"
+          ? Math.min(Math.max(Number(process.env.DYNAMIC_SCAN_TIMEOUT_MS ?? 180_000), 30_000), 600_000)
+          : 0;
+        report = dynamicTimeoutMs
+          ? await Promise.race([
+            scanPromise,
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`동적 전체 탐색 시간 초과(${dynamicTimeoutMs}ms)`)), dynamicTimeoutMs)),
+          ])
+          : scanPromise;
       } catch (error) {
         if (requested.executionMode !== "DYNAMIC") throw error;
         const message = error instanceof Error ? error.message : "동적 구매 흐름을 수집하지 못했습니다.";
@@ -78,7 +87,7 @@ export async function runScanJob(id: string, targetUrl: string) {
           status: report.scanStatus,
           durationMs: Date.now() - startedAt,
           reportPath: join(directory, "report.json"),
-          findings: { create: report.findings.map(({ type, status, stage, reason, ruleVersion }) => ({
+          findings: { create: report.findings.map(({ type, status, stage, reason, ruleVersion }: { type: string; status: string; stage: string; reason: string; ruleVersion: number }) => ({
             type, status, stage, reason, ruleVersion,
           })) },
         },
