@@ -14,9 +14,16 @@
 
 전환기에는 아직 Spring에 등록되지 않은 기존 SQLite 진단 ID도 워커 콜백으로 가져와 상태만 보존한다(`imported: true`). 이 레코드는 상점 매핑 전용이며 고객 보고서 원장으로 간주하지 않는다.
 
-Gradle 8 이상과 Java 21 이상에서 `gradle bootRun`으로 실행한다. 운영 환경에서는 PostgreSQL 연결 정보(`DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`)를 주입하고 Flyway 마이그레이션을 별도로 활성화한다.
+Gradle 8 이상과 Java 21 이상에서 `gradle bootRun`으로 실행한다. Gradle이 JDK 21을 자동으로 찾지 못하는 macOS 환경에서는 설치된 JDK 경로를 명시한다.
 
-저장소 루트의 `docker-compose.spring.yml`로 PostgreSQL과 백엔드를 함께 실행할 수 있다. `BAROMI_POSTGRES_PASSWORD`와 `BAROMI_WORKER_TOKEN`은 셸 환경변수로만 주입하며 저장소에 기록하지 않는다.
+```bash
+J21="$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home"
+JAVA_HOME="$J21" PATH="$J21/bin:$PATH" gradle test
+```
+
+운영 환경에서는 PostgreSQL 연결 정보(`DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`)를 주입하고 Flyway 마이그레이션을 별도로 활성화한다.
+
+저장소 루트의 `docker-compose.spring.yml`로 PostgreSQL과 백엔드를 함께 실행할 수 있다. `BAROMI_POSTGRES_PASSWORD`와 `BAROMI_WORKER_TOKEN`은 셸 환경변수로만 주입하며 저장소에 기록하지 않는다. 이미 생성된 PostgreSQL 볼륨은 최초 초기화 때의 비밀번호를 계속 사용하므로, 환경변수만 바꿔도 기존 볼륨의 비밀번호는 바뀌지 않는다. 기존 볼륨을 보존해야 한다면 실제 운영 비밀번호를 확인해 주입하고, 검증용이면 별도 Compose 프로젝트(`docker compose -p baromi-fresh ...`)와 새 볼륨으로 기동한다. 데이터를 지우는 `down -v`는 백업과 승인 없이 실행하지 않는다.
 
 프론트를 별도 origin으로 운영할 때는 `BAROMI_WEB_ORIGINS`에 쉼표로 구분한 HTTPS origin을 주입한다. 비어 있으면 CORS를 열지 않는다.
 
