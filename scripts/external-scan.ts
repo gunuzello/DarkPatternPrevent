@@ -41,7 +41,10 @@ async function main() {
       if (!reportPath) throw new Error("외부 진단 보고서 경로가 없습니다.");
       reports.push(await summarize(reportPath));
       if (attempt + 1 < repeatCount) {
-        await store.scan.update({ where: { id: scanId }, data: { status: "RUNNING", durationMs: null, reportPath: null, progress: 0, currentStage: null } });
+        await store.scan.update({ where: { id: scanId }, data: {
+          status: "RUNNING", durationMs: null, reportPath: null, progress: 0, currentStage: null,
+          credentialCiphertext: encryptCredentials(credentials),
+        } });
       }
     }
     const baseline = JSON.stringify(reports[0]);
