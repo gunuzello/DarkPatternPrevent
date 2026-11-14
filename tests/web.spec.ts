@@ -121,3 +121,25 @@ test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진�
   await expect(page.getByRole("link", { name: "기준 보고서 보기" })).toHaveAttribute("href", new URL(reportUrl).pathname);
   await expect(page.getByRole("link", { name: "순차공개 가격책정" })).toBeVisible();
 });
+
+test("웹 동적 검사 폼은 전용 테스트 계정을 스캔 요청에만 전달한다", async ({ page }) => {
+  let scanPayload: Record<string, unknown> | undefined;
+  await page.route("**/api/v1/shops", async (route) => {
+    await route.fulfill({ json: { shopId: "shop-credential-test", url: "https://shop.example.com/", verification: null } });
+  });
+  await page.route("**/api/v1/scans", async (route) => {
+    scanPayload = route.request().postDataJSON();
+    await route.fulfill({ status: 202, json: { scanId: "scan-credential-test", status: "QUEUED" } });
+  });
+  await page.goto(origin + "/scan/new");
+  await page.getByLabel("쇼핑몰 URL").fill("https://shop.example.com/");
+  await page.getByRole("button", { name: "소유 확인 후 동적 구매 흐름까지 검사" }).click();
+  await page.getByLabel("아이디").fill("test@example.com");
+  await page.getByLabel("비밀번호").fill("only-in-memory-password");
+  await page.getByRole("checkbox", { name: /자동 진단 권한/ }).check();
+  await page.getByRole("button", { name: "진단 시작" }).click();
+  await expect.poll(() => scanPayload).toMatchObject({
+    profile: "DYNAMIC", credentials: { username: "test@example.com", password: "only-in-memory-password" },
+  });
+  await expect(page).toHaveURL(/\/scan\/scan-credential-test$/);
+});
