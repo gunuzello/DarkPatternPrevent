@@ -71,6 +71,9 @@ export async function readSpringScan(scanId: string, owner: string, report = fal
     if (response.status === 404) return null;
     if (!response.ok) throw new Error(`Spring scan read failed: ${response.status}`);
     return await response.json() as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw new Error("Spring 상태 저장소 응답 시간 초과");
+    throw error;
   } finally {
     clearTimeout(timeout);
   }

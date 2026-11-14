@@ -312,7 +312,12 @@ export async function GET(request: NextRequest, context: Context) {
   }
   if (resource !== "scans") return notFound();
   if (springAuthoritative() && (action === undefined || action === "report")) {
-    const spring = await readSpringScan(id, session, action === "report");
+    let spring: Record<string, unknown> | null;
+    try {
+      spring = await readSpringScan(id, session, action === "report");
+    } catch (cause) {
+      return error(cause instanceof Error ? cause.message : "Spring 상태 저장소에 연결할 수 없습니다.", 503);
+    }
     if (spring) {
       if (action === "report") {
         return Response.json({ ...spring, scanId: spring.scanId ?? id, source: "SPRING_POSTGRES" }, {
