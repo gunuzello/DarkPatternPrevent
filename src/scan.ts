@@ -2,7 +2,7 @@ import { scanComparisonVersion } from "./scan-comparison";
 import { buildPriceLedger } from "./price-ledger";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { Browser, Locator, Page } from "playwright";
+import { chromium, type Browser, type Locator, type Page } from "playwright";
 import { stages, type Scenario, type Stage } from "./demo";
 import { isVariantOptionLabel, mandatoryFeeFromText, paidOptionFromText } from "./price-text";
 import { detect, type Snapshot } from "./rules";
@@ -159,11 +159,23 @@ export async function scanDemo(
   const routes = new Set<string>(selectedStages.map((stage) => path + stage));
   await mkdir(directory, { recursive: true });
   const mobile = viewport === "MOBILE";
-  const context = await browser.newContext({
-    serviceWorkers: "block", javaScriptEnabled: true, locale: "ko-KR", timezoneId: "Asia/Seoul",
+  const contextOptions = {
+    serviceWorkers: "block" as const, javaScriptEnabled: true, locale: "ko-KR", timezoneId: "Asia/Seoul",
     viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 1000 },
     isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1, acceptDownloads: false,
-  });
+  };
+  let context;
+  try {
+    context = await browser.newContext(contextOptions);
+  } catch (error) {
+    if (!/Target\.createBrowserContext|browser has been closed|Failed to create browser context/i.test(error instanceof Error ? error.message : "")) throw error;
+    // Some macOS/container combinations close a headless browser while creating
+    // an incognito context. Persistent context avoids that protocol call while
+    // retaining the same isolated profile for this scan.
+    context = await chromium.launchPersistentContext(join(directory, ".browser-profile"), {
+      ...contextOptions, headless: true, args: ["--disable-dev-shm-usage"],
+    });
+  }
   try {
     await context.route("**/*", async (route) => {
       const request = route.request();
