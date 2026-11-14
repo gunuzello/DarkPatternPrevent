@@ -46,7 +46,7 @@ type Report = {
   aiReview?: {
     id: string; status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED"; provider?: string | null; model?: string | null;
     candidateCount: number; durationMs?: number | null; error?: string | null;
-    result?: { decisions?: { candidateId: string; label: string; confidence: number; rationale: string; suggestedRule?: string | null }[] } | null;
+    result?: { promptVersion?: string; decisions?: { candidateId: string; label: string; confidence: number; rationale: string; suggestedRule?: string | null }[] } | null;
     usage?: { inputTokens: number; outputTokens: number; estimatedCostUsd: number } | null;
     operatorLabels?: { candidateId: string; label: string }[] | null;
   } | null;
@@ -130,7 +130,7 @@ export function ScanReport({ id }: { id: string }) {
         <p>기본 진단 AI 비용 · {(report.aiUsage?.estimatedCostUsd ?? 0).toFixed(6)} USD · 호출 {report.aiUsage?.calls ?? 0}회</p>
         {!report.reviewCandidates?.length ? <p>현재 보고서에는 AI로 넘길 추가 검토 후보가 없습니다.</p>
           : report.aiReview?.status === "COMPLETED" ? <>
-            <p>분석 완료 · {report.aiReview.model ?? "모델 정보 없음"} · 후보 {report.aiReview.candidateCount}건 · {(report.aiReview.durationMs ?? 0) / 1000}초 · 비용 {(report.aiReview.usage?.estimatedCostUsd ?? 0).toFixed(6)} USD</p>
+            <p>분석 완료 · {report.aiReview.model ?? "모델 정보 없음"} · 프롬프트 {report.aiReview.result?.promptVersion ?? "버전 미기록"} · 후보 {report.aiReview.candidateCount}건 · {(report.aiReview.durationMs ?? 0) / 1000}초 · 비용 {(report.aiReview.usage?.estimatedCostUsd ?? 0).toFixed(6)} USD</p>
             <ul>{report.aiReview.result?.decisions?.map((decision) => <li key={decision.candidateId}>{decision.label} · 신뢰도 {(decision.confidence * 100).toFixed(0)}% · {decision.rationale}</li>)}</ul>
           </> : report.aiReview?.status === "FAILED" ? <><p role="alert">AI 정밀 분석 실패 · {report.aiReview.error}</p>{report.aiEligible && <button disabled={pending} onClick={async () => { setPending(true); try { await post(`scans/${id}/ai-review`, {}); window.location.reload(); } catch (cause) { setError(cause instanceof Error ? cause.message : "AI 정밀 분석을 요청하지 못했습니다."); setPending(false); } }}>다시 요청</button>}</>
             : report.aiReview ? <p role="status">AI 정밀 분석 {report.aiReview.status === "QUEUED" ? "대기 중" : "진행 중"} · 기본 보고서는 지금 바로 이용할 수 있습니다.</p>
