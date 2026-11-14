@@ -73,7 +73,7 @@ export async function runScanJob(id: string, targetUrl: string) {
             scanPromise,
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`동적 전체 탐색 시간 초과(${dynamicTimeoutMs}ms)`)), dynamicTimeoutMs)),
           ])
-          : scanPromise;
+          : await scanPromise;
       } catch (error) {
         const message = error instanceof Error ? error.message : "";
         if (requested.executionMode === "STATIC" && /browser|context|Target\.createBrowserContext/i.test(message)) {
