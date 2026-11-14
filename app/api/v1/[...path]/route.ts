@@ -191,7 +191,15 @@ export async function GET(request: NextRequest, context: Context) {
   if (route.join("/") === "health") {
     try {
       await db().$queryRaw`SELECT 1`;
-      return Response.json({ status: "ok", service: "baromi", version: process.env.APP_VERSION ?? "0.1.0" }, {
+      const [queued, running, stale] = await Promise.all([
+        db().scan.count({ where: { status: "QUEUED" } }),
+        db().scan.count({ where: { status: "RUNNING" } }),
+        db().scan.count({ where: { status: "RUNNING", startedAt: { lt: new Date(Date.now() - 6 * 60 * 1000) } } }),
+      ]);
+      return Response.json({
+        status: "ok", service: "baromi", version: process.env.APP_VERSION ?? "0.1.0",
+        worker: { queued, running, stale },
+      }, {
         headers: { "Cache-Control": "no-store" },
       });
     } catch {

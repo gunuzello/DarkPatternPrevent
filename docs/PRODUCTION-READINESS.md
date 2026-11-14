@@ -14,7 +14,7 @@
 - [x] 개인정보 입력 필드 마스킹
 - [x] 진단 중복 요청 방지·취소·소유자 삭제
 - [x] 상점별 진단 이력과 JSON 보고서 다운로드
-- [x] 보관 기간 정리 작업과 헬스체크
+- [x] 보관 기간 정리 작업과 DB·워커 큐 헬스체크
 - [x] 요청 본문·API 남용 제한·보안 응답 헤더
 - [x] 수집 실패 유형 코드화(`FETCH_FAILED`, `PRODUCT_NOT_FOUND`, `DYNAMIC_RENDER_FAILED`, `DYNAMIC_JOURNEY_FAILED`)
 - [x] 합성 평가 40건 및 문구 변형·정상 대조군 16건 반복 평가
