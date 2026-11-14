@@ -73,6 +73,14 @@ test("가격이 없어도 자동연장·마케팅 동의 기본 선택을 기록
   expect(detect([product]).map(({ type }) => type)).toEqual(["PRESELECTION"]);
 });
 
+test("가격비교 방해 표현을 공백 변형과 함께 검토 후보로 기록한다", () => {
+  const product = {
+    evidenceId: "comparison-product", stage: "product" as const, url: "https://shop.test/p/1", screenshot: "",
+    priceLines: [], textLines: ["월 납부 금액과 총 비용은 결제 단계에서 확인하세요"], fees: [], options: [],
+  };
+  expect(detect([product]).map(({ type }) => type)).toContain("PRICE_COMPARISON_OBSTRUCTION");
+});
+
 test("위험 데모의 바로구매 경로는 장바구니를 선택 경로에서 제외한다", async ({ browser }, info) => {
   const report = await scanDemo(browser, origin, "risky", info.outputPath("direct"), undefined, "DESKTOP", "DIRECT");
   expect(report.purchasePath).toBe("DIRECT");
