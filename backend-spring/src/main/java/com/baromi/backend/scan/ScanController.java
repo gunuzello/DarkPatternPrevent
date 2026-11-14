@@ -11,7 +11,7 @@ public class ScanController {
  public ScanController(ScanRepository scans,ShopRepository shops,@Value("${baromi.worker-token:}") String workerToken){this.scans=scans;this.shops=shops;this.workerToken=workerToken;}
  @PostMapping public ResponseEntity<?> create(@RequestHeader("X-Baromi-Owner") String owner,@RequestBody CreateScanRequest request){
   if(owner.isBlank()||request==null||request.shopId()==null||shops.findByIdAndOwnerHash(request.shopId(),ShopController.ownerHashForApi(owner)).isEmpty()) return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error","상점을 찾을 수 없습니다."));
-  var scan=scans.save(new ScanEntity(UUID.randomUUID().toString(),request.shopId(),"queued",Instant.now()));
+  var scan=scans.save(new ScanEntity(UUID.randomUUID().toString(),request.shopId(),"queued",Instant.now(),request.targetUrl(),request.executionMode(),request.viewport(),request.purchasePath()));
   return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of("scanId",scan.getId(),"status",scan.getStatus()));
  }
  @PatchMapping("/{id}/status") public ResponseEntity<?> updateStatus(@RequestHeader("X-Baromi-Worker") String token,@PathVariable String id,@RequestBody StatusRequest request){
@@ -28,7 +28,7 @@ public class ScanController {
  @GetMapping("/{id}") public ResponseEntity<?> get(@RequestHeader("X-Baromi-Owner") String owner,@PathVariable String id){
   return scans.findById(id).filter(s->s.getShopId()!=null && shops.findByIdAndOwnerHash(s.getShopId(),ShopController.ownerHashForApi(owner)).isPresent()).<ResponseEntity<?>>map(s->{ var body=statusBody(s); body.put("shopId",s.getShopId()); return ResponseEntity.ok(body); }).orElseGet(()->ResponseEntity.notFound().build());
  }
- public record CreateScanRequest(String shopId) {}
+ public record CreateScanRequest(String shopId, String targetUrl, String executionMode, String viewport, String purchasePath) {}
   public record StatusRequest(String status, String stage) {}
  private static LinkedHashMap<String,Object> statusBody(ScanEntity scan){ var body=new LinkedHashMap<String,Object>(); body.put("scanId",scan.getId()); body.put("status",scan.getStatus()); body.put("currentStage",scan.getCurrentStage()); return body; }
  private static boolean isAllowed(String status){return switch(status){case "queued","running","partial","succeeded","failed","cancelled" -> true; default -> false;};}

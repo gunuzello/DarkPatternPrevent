@@ -7,11 +7,17 @@ public class ScanEntity {
  @Column(name="shop_id") private String shopId;
  @Column(nullable=false) private String status;
  @Column(name="current_stage") private String currentStage;
+ @Column(name="target_url") private String targetUrl;
+ @Column(name="execution_mode") private String executionMode;
+ @Column(name="viewport") private String viewport;
+ @Column(name="purchase_path") private String purchasePath;
  @Column(name="created_at", nullable=false) private Instant createdAt;
  @Column(name="updated_at", nullable=false) private Instant updatedAt;
  protected ScanEntity() {}
  public ScanEntity(String id,String shopId,String status,Instant now){this.id=id;this.shopId=shopId;this.status=status;this.createdAt=now;this.updatedAt=now;}
+ public ScanEntity(String id,String shopId,String status,Instant now,String targetUrl,String executionMode,String viewport,String purchasePath){this(id,shopId,status,now);this.targetUrl=targetUrl;this.executionMode=executionMode;this.viewport=viewport;this.purchasePath=purchasePath;}
  public String getId(){return id;} public String getShopId(){return shopId;} public String getStatus(){return status;}
  public String getCurrentStage(){return currentStage;} public void setCurrentStage(String stage){this.currentStage=stage;}
+ public String getTargetUrl(){return targetUrl;} public String getExecutionMode(){return executionMode;} public String getViewport(){return viewport;} public String getPurchasePath(){return purchasePath;}
  public void setStatus(String status){this.status=status; this.updatedAt=Instant.now();}
 }
