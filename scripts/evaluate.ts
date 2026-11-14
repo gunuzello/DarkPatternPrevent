@@ -32,6 +32,10 @@ const stableObservation = (scan: Awaited<ReturnType<typeof scanDemo>>) => JSON.s
 });
 
 async function main() {
+  if (process.argv.includes("--help") || process.argv.includes("-h")) {
+    console.log("사용법: npm run evaluate [-- --text-validation]\n합성 평가를 실행하고 결과를 scan-results에 기록합니다.");
+    return;
+  }
   const validateText = process.argv.includes("--text-validation");
   const cases = validateText ? textValidationCases : detectionCases;
   const directory = join("scan-results", validateText ? "text-validation" : "evaluation");
