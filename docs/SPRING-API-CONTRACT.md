@@ -2,6 +2,8 @@
 
 이 문서는 프론트엔드와 탐색 워커가 Spring 백엔드와 연동할 때 사용하는 현재 계약이다. 공개 인증 계층은 아직 전환 중이므로 아래 헤더는 내부 전환용이며, 최종 서비스 인증으로 교체될 예정이다.
 
+`GET /api/v1/health`는 프로세스 liveness를, `GET /api/v1/health/readiness`는 PostgreSQL 연결을 확인한다. readiness가 `503`이면 트래픽을 보내지 않는다.
+
 ## 공통 규칙
 
 - 모든 상점·진단 요청은 `X-Baromi-Owner`로 소유자 범위를 지정한다.
