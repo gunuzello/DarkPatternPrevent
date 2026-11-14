@@ -299,7 +299,7 @@ export async function GET(request: NextRequest, context: Context) {
   };
   if (!action) {
     return Response.json({
-      scanId: scan.id, shopId: scan.shopId, scenario: scan.scenario, viewport: scan.viewport,
+      scanId: scan.id, shopId: scan.shopId, scenario: scan.scenario, executionMode: scan.executionMode, viewport: scan.viewport,
       durationMs: scan.durationMs,
       purchasePath: scan.purchasePath,
       status: scan.status, cancelRequested: scan.cancelRequested, currentStage: scan.currentStage,

@@ -160,15 +160,15 @@ export type SurfaceObservation = {
 async function inspectSurfaceDestinations(page: Page, destinations: { kind: SurfaceObservation["kind"]; href: string }[]): Promise<SurfaceObservation[]> {
   const origin = new URL(page.url()).origin;
   const observations: SurfaceObservation[] = [];
-  for (const destination of destinations.slice(0, 6)) {
+  for (const destination of destinations.slice(0, 4)) {
     if (new URL(destination.href).origin !== origin) {
       observations.push({ evidenceId: `surface:${destination.kind.toLowerCase()}:${observations.length}`, kind: destination.kind, url: destination.href, status: null, title: "", text: "", outcome: "CROSS_ORIGIN" });
       continue;
     }
     const probe = await page.context().newPage();
     try {
-      const response = await probe.goto(destination.href, { waitUntil: "domcontentloaded", timeout: 10_000 });
-      await probe.waitForLoadState("networkidle", { timeout: 2_000 }).catch(() => {});
+      const response = await probe.goto(destination.href, { waitUntil: "domcontentloaded", timeout: 5_000 });
+      await probe.waitForLoadState("networkidle", { timeout: 1_000 }).catch(() => {});
       observations.push({
         evidenceId: `surface:${destination.kind.toLowerCase()}:${observations.length}`, kind: destination.kind, url: destination.href, status: response?.status() ?? null,
         title: await probe.title().catch(() => ""),

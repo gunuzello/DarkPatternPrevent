@@ -66,7 +66,7 @@ export async function runScanJob(id: string, targetUrl: string) {
       try {
         let scanPromise: Promise<any> = scanWithBrowser(browser);
         const dynamicTimeoutMs = requested.executionMode === "DYNAMIC"
-          ? Math.min(Math.max(Number(process.env.DYNAMIC_SCAN_TIMEOUT_MS ?? 180_000), 30_000), 600_000)
+          ? Math.min(Math.max(Number(process.env.DYNAMIC_SCAN_TIMEOUT_MS ?? 90_000), 30_000), 180_000)
           : 0;
         report = dynamicTimeoutMs
           ? await Promise.race([

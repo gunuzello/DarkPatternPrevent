@@ -11,6 +11,7 @@ type Status = "QUEUED" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED" | "CANCE
 type ScanState = {
   shopId: string;
   scenario?: string;
+  executionMode?: "DEMO" | "STATIC" | "DYNAMIC";
   viewport: "DESKTOP" | "MOBILE";
   purchasePath: "CART" | "DIRECT";
   status: Status;
@@ -76,7 +77,7 @@ export function ScanProgress({ id }: { id: string }) {
       <div className="progress-status"><span className={`status-dot ${active ? "active" : ""}`} /> <strong>{scan.cancelRequested && active ? "중단 요청 처리 중" : labels[scan.status]}</strong><span className="progress-hint">보통 30초~3분</span></div>
       {active && <><progress aria-label="진단 진행률" value={scan.progress} max={100} />{scan.currentStage && <p className="current-stage">지금 확인 중 · <strong>{stageLabels[scan.currentStage]}</strong></p>}<p className="safe-note">결제·주문 확정·외부 사이트 이동은 실행하지 않습니다.</p></>}
       <div className="stage-list">{stages.map((stage) => <div className={`stage-row ${scan.coverage[stage].toLowerCase()}`} key={stage}><span className="stage-mark" /> <strong>{stageLabels[stage]}</strong><span>{
-        scan.coverage[stage] === "COVERED" ? (scan.scenario === "public" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : scan.coverage[stage] === "SKIPPED" ? "선택 경로에 없음" : scan.coverage[stage] === "BLOCKED" ? "미검사" : "대기"
+        scan.coverage[stage] === "COVERED" ? (scan.executionMode === "STATIC" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : scan.coverage[stage] === "SKIPPED" ? "선택 경로에 없음" : scan.coverage[stage] === "BLOCKED" ? "미검사" : "대기"
       }</span></div>)}</div>
       {scan.summary && <div className="scan-mini-summary"><span>위험 신호 <b>{scan.summary.suspected}</b></span><span>검토 필요 <b>{scan.summary.reviewNeeded}</b></span><span>미검사 <b>{scan.summary.notTested}</b></span></div>}
       <section className="rule-summary" aria-label="진단 항목"><div className="rule-summary-head"><strong>진단 항목</strong><span>총 {Object.keys(legalRules).length}개 유형</span></div><p>각 구매 단계에서 아래 유형을 규칙과 증거로 확인합니다. 이 목록은 구매 단계와 별도의 진단 기능 목록입니다.</p><div className="rule-chips">{Object.entries(legalRules).map(([key, rule]) => <span key={key} title={rule.title}>{rule.title}</span>)}</div></section>
