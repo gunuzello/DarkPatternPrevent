@@ -25,4 +25,6 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.14"
-      - run: gradle test
+      - run: gradle test bootJar
+      - name: Build runtime image
+        run: docker build -t baromi-backend:ci .
