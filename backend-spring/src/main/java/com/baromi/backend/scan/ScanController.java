@@ -3,6 +3,7 @@ import com.baromi.backend.shop.ShopController;
 import com.baromi.backend.shop.ShopRepository;
 import java.net.URI; import java.time.Instant; import java.util.LinkedHashMap; import java.util.Map; import java.util.UUID;
 import org.springframework.http.*; import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 @RestController @RequestMapping("/api/v1/scans")
@@ -52,7 +53,7 @@ public class ScanController {
  @GetMapping("/shop/{shopId}") public ResponseEntity<?> listForShop(@RequestHeader("X-Baromi-Owner") String owner,@PathVariable String shopId,@RequestParam(defaultValue="50") int limit){
   if(owner.isBlank() || shops.findByIdAndOwnerHash(shopId,ShopController.ownerHashForApi(owner)).isEmpty()) return ResponseEntity.notFound().build();
   var safeLimit = Math.min(Math.max(limit, 1), 100);
-  var items = scans.findByShopIdOrderByCreatedAtDesc(shopId).stream().limit(safeLimit).map(ScanController::statusBody).toList();
+  var items = scans.findByShopIdOrderByCreatedAtDesc(shopId, PageRequest.of(0, safeLimit)).stream().map(ScanController::statusBody).toList();
   return ResponseEntity.ok(Map.of("shopId", shopId, "limit", safeLimit, "scans", items));
  }
  public record CreateScanRequest(String id, String shopId, String targetUrl, String executionMode, String viewport, String purchasePath) {}

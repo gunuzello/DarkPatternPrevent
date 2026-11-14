@@ -102,7 +102,7 @@ class ScanControllerTest {
         var shop = new com.baromi.backend.shop.ShopEntity("shop-1", "https://shop.example", ShopController.ownerHashForApi("owner-1"), Instant.now());
         var scan = new ScanEntity("scan-4", "shop-1", "succeeded", Instant.now());
         when(shops.findByIdAndOwnerHash("shop-1", ShopController.ownerHashForApi("owner-1"))).thenReturn(Optional.of(shop));
-        when(scans.findByShopIdOrderByCreatedAtDesc("shop-1")).thenReturn(java.util.List.of(scan));
+        when(scans.findByShopIdOrderByCreatedAtDesc(org.mockito.ArgumentMatchers.eq("shop-1"), org.mockito.ArgumentMatchers.any())).thenReturn(java.util.List.of(scan));
 
         mvc.perform(get("/api/v1/scans/shop/shop-1").header("X-Baromi-Owner", "owner-1"))
             .andExpect(status().isOk())
@@ -129,7 +129,7 @@ class ScanControllerTest {
     void scanHistoryLimitIsClampedToSafeRange() throws Exception {
         var shop = new com.baromi.backend.shop.ShopEntity("shop-limit", "https://shop.example", ShopController.ownerHashForApi("owner-1"), Instant.now());
         when(shops.findByIdAndOwnerHash("shop-limit", ShopController.ownerHashForApi("owner-1"))).thenReturn(Optional.of(shop));
-        when(scans.findByShopIdOrderByCreatedAtDesc("shop-limit")).thenReturn(java.util.List.of());
+        when(scans.findByShopIdOrderByCreatedAtDesc(org.mockito.ArgumentMatchers.eq("shop-limit"), org.mockito.ArgumentMatchers.any())).thenReturn(java.util.List.of());
 
         mvc.perform(get("/api/v1/scans/shop/shop-limit?limit=0").header("X-Baromi-Owner", "owner-1"))
             .andExpect(status().isOk())
