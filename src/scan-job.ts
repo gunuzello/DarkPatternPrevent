@@ -44,8 +44,8 @@ export async function runScanJob(id: string, targetUrl: string) {
     try {
       const directory = evidenceDirectory(id);
       let progress = 0;
-      const onStage = async () => {
-        const scan = await store.scan.update({ where: { id }, data: { progress: ++progress } });
+      const onStage = async (snapshot: { stage: string }) => {
+        const scan = await store.scan.update({ where: { id }, data: { progress: ++progress, currentStage: snapshot.stage } });
         if (scan.cancelRequested) throw new Error("진단 중단");
       };
       let report;

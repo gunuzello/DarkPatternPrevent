@@ -15,6 +15,7 @@ type ScanState = {
   status: Status;
   cancelRequested: boolean;
   progress: number;
+  currentStage?: Stage | null;
   coverage: Record<Stage, "COVERED" | "BLOCKED" | "PENDING" | "SKIPPED">;
 };
 
@@ -71,7 +72,7 @@ export function ScanProgress({ id }: { id: string }) {
   return (
     <section>
       <p role="status"><strong>{scan.cancelRequested && active ? "중단 요청 처리 중" : labels[scan.status]}</strong></p>
-      {active && <progress aria-label="진단 진행률" value={scan.progress} max={100} />}
+      {active && <><progress aria-label="진단 진행률" value={scan.progress} max={100} />{scan.currentStage && <p>현재 단계: {stageLabels[scan.currentStage]}</p>}</>}
       <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {
         scan.coverage[stage] === "COVERED" ? (scan.scenario === "public" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : scan.coverage[stage] === "SKIPPED" ? "선택 경로에 없음" : scan.coverage[stage] === "BLOCKED" ? "미검사" : "대기"
       }</li>)}</ul>

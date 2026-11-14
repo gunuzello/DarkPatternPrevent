@@ -300,7 +300,7 @@ export async function GET(request: NextRequest, context: Context) {
       scanId: scan.id, shopId: scan.shopId, scenario: scan.scenario, viewport: scan.viewport,
       durationMs: scan.durationMs,
       purchasePath: scan.purchasePath,
-      status: scan.status, cancelRequested: scan.cancelRequested,
+      status: scan.status, cancelRequested: scan.cancelRequested, currentStage: scan.currentStage,
       progress: active ? Math.round(Math.min(scan.progress, progressStages) * 100 / progressStages) : 100, coverage, summary,
     });
   }
