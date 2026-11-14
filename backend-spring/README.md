@@ -12,3 +12,5 @@
 전환기에는 아직 Spring에 등록되지 않은 기존 SQLite 진단 ID도 워커 콜백으로 가져와 상태만 보존한다(`imported: true`). 이 레코드는 상점 매핑 전용이며 고객 보고서 원장으로 간주하지 않는다.
 
 Gradle 8 이상과 Java 21 이상에서 `gradle bootRun`으로 실행한다. 운영 환경에서는 PostgreSQL 연결 정보(`DATABASE_URL`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`)를 주입하고 Flyway 마이그레이션을 별도로 활성화한다.
+
+저장소 루트의 `docker-compose.spring.yml`로 PostgreSQL과 백엔드를 함께 실행할 수 있다. `BAROMI_POSTGRES_PASSWORD`와 `BAROMI_WORKER_TOKEN`은 셸 환경변수로만 주입하며 저장소에 기록하지 않는다.

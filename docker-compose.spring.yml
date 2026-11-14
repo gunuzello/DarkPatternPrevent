@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: baromi
+      POSTGRES_USER: baromi
+      POSTGRES_PASSWORD: ${BAROMI_POSTGRES_PASSWORD:?set BAROMI_POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - baromi-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U baromi -d baromi"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  backend:
+    build:
+      context: ./backend-spring
+    environment:
+      PORT: 8080
+      DATABASE_URL: jdbc:postgresql://postgres:5432/baromi
+      DATABASE_USERNAME: baromi
+      DATABASE_PASSWORD: ${BAROMI_POSTGRES_PASSWORD:?set BAROMI_POSTGRES_PASSWORD}
+      FLYWAY_ENABLED: "true"
+      BAROMI_WORKER_TOKEN: ${BAROMI_WORKER_TOKEN:?set BAROMI_WORKER_TOKEN}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q 'UP'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+volumes:
+  baromi-postgres:
