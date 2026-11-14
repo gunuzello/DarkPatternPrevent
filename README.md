@@ -67,6 +67,19 @@ npm run worker
 
 `DEMO_ORIGIN`을 설정할 경우 웹 서버와 워커에 동일한 로컬 주소를 사용하세요. SQLite와 증거 경로도 두 프로세스에서 공유해야 합니다.
 
+### Spring 전환기 워커 큐
+
+Spring Boot·PostgreSQL 환경을 함께 띄우려면 `docker compose -f docker-compose.spring.yml up --build`를 사용합니다. 기본 워커 큐는 SQLite이며, Spring `claim` API 검증을 마친 환경에서만 다음 값을 켭니다.
+
+```sh
+BAROMI_SPRING_API_URL="http://127.0.0.1:8080" \
+BAROMI_WORKER_TOKEN="운영-워커-토큰" \
+BAROMI_SPRING_QUEUE_ENABLED=true \
+npm run worker
+```
+
+Spring 큐는 `POST /api/v1/scans/claim`으로 작업을 원자적으로 가져오고, `POST /api/v1/scans/recover`로 기준 시각 이전의 오래된 작업을 복구합니다. 전환기에는 동일한 진단 ID가 SQLite에도 있어야 하며, 운영 전환 전 PostgreSQL·워커 재시작·중복 claim 검증을 완료해야 합니다. 상세 조건은 [Spring 환경 체크리스트](docs/SPRING-ENVIRONMENT-CHECKLIST.md)를 참고하세요.
+
 외부 진단은 플랫폼 제한 없이 공개 HTTPS 주소를 받습니다. 사이트 소유 확인 전에는 초기 HTML만 검사하고 장바구니·주문서를 미검사로 표시합니다. 서버가 발급한 메타 태그로 소유 확인을 마치면 별도 브라우저 세션에서 동적 구매 흐름을 탐색할 수 있습니다. 공개 주소로 검증된 대상에만 연결하며 주문 확정과 결제는 실행하지 않습니다. 실제 탐색 성능은 권한을 받은 테스트몰에서 별도로 검증해야 합니다.
 
 외부 테스트몰의 로그인 경로만 확인하려면 계정 값을 환경변수로 주입하는 스모크 명령을 사용할 수 있습니다. 값은 파일이나 명령 출력에 저장하지 말고 전용 테스트 계정만 사용하세요. 이 명령은 주문·결제를 실행하지 않습니다.
