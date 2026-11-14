@@ -30,28 +30,23 @@ async function summarize(reportPath: string): Promise<ScanSummary> {
 }
 
 async function main() {
-  const store = db(); const shopId = randomUUID(); const scanId = randomUUID();
-  const ownerHash = createHash("sha256").update(`external-smoke:${scanId}`).digest("hex");
+  const store = db(); const shopId = randomUUID(); const scanIds: string[] = [];
+  const ownerHash = createHash("sha256").update(`external-smoke:${shopId}`).digest("hex");
   try {
     await store.shop.create({ data: { id: shopId, url: publicTarget.url, ownerHash, verifiedAt: new Date() } });
-    await store.scan.create({ data: { id: scanId, shopId, scenario: "public", executionMode: "DYNAMIC", viewport: "DESKTOP", purchasePath: "CART", targetUrl: publicTarget.url, status: "RUNNING", credentialCiphertext: encryptCredentials(credentials) } });
     const reports: ScanSummary[] = [];
     for (let attempt = 0; attempt < repeatCount; attempt++) {
+      const scanId = randomUUID(); scanIds.push(scanId);
+      await store.scan.create({ data: { id: scanId, shopId, scenario: "public", executionMode: "DYNAMIC", viewport: "DESKTOP", purchasePath: "CART", targetUrl: publicTarget.url, status: "RUNNING", credentialCiphertext: encryptCredentials(credentials) } });
       const reportPath = await runScanJob(scanId, publicTarget.url);
       if (!reportPath) throw new Error("외부 진단 보고서 경로가 없습니다.");
       reports.push(await summarize(reportPath));
-      if (attempt + 1 < repeatCount) {
-        await store.scan.update({ where: { id: scanId }, data: {
-          status: "RUNNING", durationMs: null, reportPath: null, progress: 0, currentStage: null,
-          credentialCiphertext: encryptCredentials(credentials),
-        } });
-      }
     }
     const baseline = JSON.stringify(reports[0]);
     const matchingRuns = reports.filter((report) => JSON.stringify(report) === baseline).length;
-    console.log(JSON.stringify({ ok: true, scanId, repeatCount, matchingRuns, repeatability: matchingRuns / reports.length, reports }));
+    console.log(JSON.stringify({ ok: true, scanIds, repeatCount, matchingRuns, repeatability: matchingRuns / reports.length, reports }));
   } finally {
-    await store.scan.deleteMany({ where: { id: scanId } }).catch(() => undefined);
+    await store.scan.deleteMany({ where: { shopId } }).catch(() => undefined);
     await store.shop.deleteMany({ where: { id: shopId } }).catch(() => undefined);
     await store.$disconnect();
   }
