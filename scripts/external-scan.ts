@@ -1,9 +1,10 @@
 import { randomUUID, createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { db } from "../src/db";
 import { encryptCredentials } from "../src/credential-vault";
 import { runScanJob } from "../src/scan-job";
 import { scanTarget } from "../src/targets";
+import { evidenceDirectory } from "../src/evidence-directory";
 
 const url = process.env.BAROMI_SMOKE_URL;
 const username = process.env.BAROMI_SMOKE_USERNAME;
@@ -41,6 +42,7 @@ async function main() {
       const reportPath = await runScanJob(scanId, publicTarget.url);
       if (!reportPath) throw new Error("외부 진단 보고서 경로가 없습니다.");
       reports.push(await summarize(reportPath));
+      await rm(evidenceDirectory(scanId), { recursive: true, force: true }).catch(() => undefined);
     }
     const baseline = JSON.stringify(reports[0]);
     const matchingRuns = reports.filter((report) => JSON.stringify(report) === baseline).length;
