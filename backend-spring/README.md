@@ -4,10 +4,12 @@
 
 - `GET /api/v1/health`
 - `POST /api/v1/shops`, `GET /api/v1/shops/{id}`
-- `POST /api/v1/scans`, `GET /api/v1/scans/{id}`
+- `POST /api/v1/scans`, `GET /api/v1/scans/{id}`, `GET /api/v1/scans/shop/{shopId}`
 - `PATCH /api/v1/scans/{id}/status` (워커 전용; `queued/running/partial/succeeded/failed/cancelled`)
 
 상점/진단 생성은 현재 전환기용 `X-Baromi-Owner` 헤더를 사용한다. 최종 공개 인증은 별도 인증 계층으로 교체한다. 워커 상태 콜백은 `BAROMI_WORKER_TOKEN` 환경변수와 `X-Baromi-Worker` 헤더를 사용하며 토큰은 저장소에 커밋하지 않는다.
+
+상점별 진단 목록도 소유자 헤더로 격리된다. 프론트는 목록 응답의 `scans[]`에서 `scanId`, `status`, `currentStage`를 사용해 대시보드 상태를 표시할 수 있다.
 
 전환기에는 아직 Spring에 등록되지 않은 기존 SQLite 진단 ID도 워커 콜백으로 가져와 상태만 보존한다(`imported: true`). 이 레코드는 상점 매핑 전용이며 고객 보고서 원장으로 간주하지 않는다.
 

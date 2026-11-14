@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -16,6 +17,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import com.baromi.backend.shop.ShopController;
 import com.baromi.backend.shop.ShopRepository;
 
 @WebMvcTest(ScanController.class)
@@ -80,5 +82,18 @@ class ScanControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.recovered").value(1));
         verify(scans).save(scan);
+    }
+
+    @Test
+    void ownerCanListOnlyTheirShopScans() throws Exception {
+        var shop = new com.baromi.backend.shop.ShopEntity("shop-1", "https://shop.example", ShopController.ownerHashForApi("owner-1"), Instant.now());
+        var scan = new ScanEntity("scan-4", "shop-1", "succeeded", Instant.now());
+        when(shops.findByIdAndOwnerHash("shop-1", ShopController.ownerHashForApi("owner-1"))).thenReturn(Optional.of(shop));
+        when(scans.findByShopIdOrderByCreatedAtDesc("shop-1")).thenReturn(java.util.List.of(scan));
+
+        mvc.perform(get("/api/v1/scans/shop/shop-1").header("X-Baromi-Owner", "owner-1"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.shopId").value("shop-1"))
+            .andExpect(jsonPath("$.scans[0].scanId").value("scan-4"));
     }
 }

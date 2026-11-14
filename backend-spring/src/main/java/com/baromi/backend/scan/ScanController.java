@@ -44,6 +44,11 @@ public class ScanController {
  @GetMapping("/{id}") public ResponseEntity<?> get(@RequestHeader("X-Baromi-Owner") String owner,@PathVariable String id){
   return scans.findById(id).filter(s->s.getShopId()!=null && shops.findByIdAndOwnerHash(s.getShopId(),ShopController.ownerHashForApi(owner)).isPresent()).<ResponseEntity<?>>map(s->{ var body=statusBody(s); body.put("shopId",s.getShopId()); return ResponseEntity.ok(body); }).orElseGet(()->ResponseEntity.notFound().build());
  }
+ @GetMapping("/shop/{shopId}") public ResponseEntity<?> listForShop(@RequestHeader("X-Baromi-Owner") String owner,@PathVariable String shopId){
+  if(owner.isBlank() || shops.findByIdAndOwnerHash(shopId,ShopController.ownerHashForApi(owner)).isEmpty()) return ResponseEntity.notFound().build();
+  var items = scans.findByShopIdOrderByCreatedAtDesc(shopId).stream().map(ScanController::statusBody).toList();
+  return ResponseEntity.ok(Map.of("shopId", shopId, "scans", items));
+ }
  public record CreateScanRequest(String id, String shopId, String targetUrl, String executionMode, String viewport, String purchasePath) {}
   public record StatusRequest(String status, String stage) {}
  public record RecoverRequest(Instant staleBefore) {}
