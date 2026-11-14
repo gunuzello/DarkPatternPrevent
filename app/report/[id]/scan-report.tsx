@@ -13,6 +13,7 @@ const failureLabels: Record<string, string> = {
   PRODUCT_NOT_FOUND: "상품 상세 미발견",
   DYNAMIC_RENDER_FAILED: "동적 화면 렌더링 실패",
   DYNAMIC_JOURNEY_FAILED: "구매 흐름 수집 실패",
+  AUTH_CHALLENGE: "추가 인증으로 중단",
 };
 
 type Report = {

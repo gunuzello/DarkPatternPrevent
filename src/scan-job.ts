@@ -58,6 +58,8 @@ export async function runScanJob(id: string, targetUrl: string) {
           : await scanDemo(browser, new URL(target.url).origin, target.scenario, directory, onStage, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", requested.purchasePath === "DIRECT" ? "DIRECT" : "CART");
       } catch (error) {
         if (requested.executionMode !== "DYNAMIC") throw error;
+        const message = error instanceof Error ? error.message : "동적 구매 흐름을 수집하지 못했습니다.";
+        const authChallenge = /(?:otp|captcha|추가 인증|인증 코드|보안 문자|로그인에 실패)/i.test(message);
         report = {
           comparisonVersion: scanComparisonVersion,
           scanStatus: "PARTIAL" as const, executionMode: "DYNAMIC" as const,
@@ -65,8 +67,8 @@ export async function runScanJob(id: string, targetUrl: string) {
           purchasePath: requested.purchasePath === "DIRECT" ? "DIRECT" as const : "CART" as const,
           scenario: "public" as const, targetUrl, snapshots: [], interactions: [],
           explorationBlocker: null, networkPriceEvidence: [], priceLedger: buildPriceLedger([]), findings: [],
-          collectionFailure: error instanceof Error ? error.message : "동적 구매 흐름을 수집하지 못했습니다.",
-          collectionFailureCode: "DYNAMIC_JOURNEY_FAILED" as const,
+          collectionFailure: message,
+          collectionFailureCode: authChallenge ? "AUTH_CHALLENGE" as const : "DYNAMIC_JOURNEY_FAILED" as const,
         };
         await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
       }
