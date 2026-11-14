@@ -107,7 +107,9 @@ class ScanControllerTest {
         mvc.perform(get("/api/v1/scans/shop/shop-1").header("X-Baromi-Owner", "owner-1"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.shopId").value("shop-1"))
-            .andExpect(jsonPath("$.scans[0].scanId").value("scan-4"));
+            .andExpect(jsonPath("$.scans[0].scanId").value("scan-4"))
+            .andExpect(jsonPath("$.scans[0].createdAt").exists())
+            .andExpect(jsonPath("$.scans[0].updatedAt").exists());
     }
 
     @Test

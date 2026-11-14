@@ -49,7 +49,7 @@
 {
   "shopId": "shop-id",
   "scans": [
-    { "scanId": "scan-id", "status": "running", "currentStage": "cart" }
+    { "scanId": "scan-id", "status": "running", "currentStage": "cart", "createdAt": "2026-11-14T10:00:00Z", "updatedAt": "2026-11-14T10:01:00Z", "startedAt": "2026-11-14T10:00:05Z" }
   ]
 }
 ```

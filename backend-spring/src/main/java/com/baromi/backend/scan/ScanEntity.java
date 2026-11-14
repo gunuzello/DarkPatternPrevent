@@ -20,6 +20,6 @@ public class ScanEntity {
  public String getId(){return id;} public String getShopId(){return shopId;} public String getStatus(){return status;}
  public String getCurrentStage(){return currentStage;} public void setCurrentStage(String stage){this.currentStage=stage;}
  public String getTargetUrl(){return targetUrl;} public String getExecutionMode(){return executionMode;} public String getViewport(){return viewport;} public String getPurchasePath(){return purchasePath;}
- public Instant getStartedAt(){return startedAt;} public void markStarted(){this.startedAt=Instant.now();}
+ public Instant getCreatedAt(){return createdAt;} public Instant getUpdatedAt(){return updatedAt;} public Instant getStartedAt(){return startedAt;} public void markStarted(){this.startedAt=Instant.now(); this.updatedAt=this.startedAt;}
  public void setStatus(String status){this.status=status; this.updatedAt=Instant.now();}
 }
