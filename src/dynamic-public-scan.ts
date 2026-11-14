@@ -10,6 +10,7 @@ import { scanComparisonVersion } from "./scan-comparison";
 import { detect, type InteractionEvidence, type Snapshot } from "./rules";
 import { feeMentionsFromText } from "./price-text";
 import { collectReviewCandidates, collectSurfaceReviewCandidates } from "./review-candidates";
+import { classifyReviewCandidates } from "./review-classifier";
 import { structuredProductLinks } from "./structured-product-links";
 import type { TestCredentials } from "./credential-vault";
 import { classifyDynamicFailure } from "./scan-failure";
@@ -196,6 +197,7 @@ export async function scanDynamicPublicShop(
     });
     if (journeyTimer) clearTimeout(journeyTimer);
     interactions.push(...journey.observations.map(({ action }) => action));
+    const reviewCandidates = [...collectReviewCandidates(snapshots), ...collectSurfaceReviewCandidates(journey.surfaceObservations)];
     const report = {
       comparisonVersion: scanComparisonVersion,
       scanStatus: journey.reached === "checkout" ? "COMPLETED" as const : "PARTIAL" as const,
@@ -205,7 +207,8 @@ export async function scanDynamicPublicShop(
       surfaceObservations: journey.surfaceObservations,
       networkPriceEvidence: journey.network,
       priceLedger: buildPriceLedger(snapshots, journey.network, firstPriceExposure),
-      reviewCandidates: [...collectReviewCandidates(snapshots), ...collectSurfaceReviewCandidates(journey.surfaceObservations)],
+      reviewCandidates,
+      reviewClassifications: classifyReviewCandidates(reviewCandidates),
       aiUsage: summarizeAiUsage([]),
       findings: detect(snapshots, firstPriceExposure?.feeMentions), collectionFailure: journeyFailure, collectionFailureCode: journeyFailure ? classifyDynamicFailure(journeyFailure) : null,
     };
