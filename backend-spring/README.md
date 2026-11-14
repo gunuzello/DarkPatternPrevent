@@ -3,7 +3,7 @@
 기존 Next.js API를 단계적으로 이전하기 위한 백엔드다. 현재 제공 계약은 다음과 같다.
 
 - `GET /api/v1/health`
-- `POST /api/v1/shops`, `GET /api/v1/shops/{id}`
+- `POST /api/v1/shops`, `GET /api/v1/shops`, `GET /api/v1/shops/{id}`
 - `POST /api/v1/scans`, `GET /api/v1/scans/{id}`, `GET /api/v1/scans/shop/{shopId}`
 - `PATCH /api/v1/scans/{id}/status` (워커 전용; `queued/running/partial/succeeded/failed/cancelled`)
 

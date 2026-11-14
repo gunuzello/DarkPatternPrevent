@@ -11,6 +11,12 @@
 
 ## 상점
 
+`GET /api/v1/shops?limit=50` — 소유자 범위의 최신 상점 목록. `limit`은 1~100으로 제한된다.
+
+```json
+{ "limit": 50, "shops": [{ "shopId": "shop-id", "url": "https://shop.example" }] }
+```
+
 `POST /api/v1/shops`
 
 ```json

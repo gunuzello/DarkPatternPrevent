@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/v1/shops")
@@ -43,6 +45,16 @@ public class ShopController {
         return shops.findByIdAndOwnerHash(id, ownerHashForApi(owner))
             .<ResponseEntity<?>>map(shop -> ResponseEntity.ok(Map.of("shopId", shop.getId(), "url", shop.getUrl())))
             .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    public ResponseEntity<?> list(@RequestHeader("X-Baromi-Owner") String owner,
+                                  @RequestParam(defaultValue = "50") int limit) {
+        if (owner.isBlank()) return ResponseEntity.badRequest().body(Map.of("error", "소유자 인증이 필요합니다."));
+        var safeLimit = Math.min(Math.max(limit, 1), 100);
+        var items = shops.findByOwnerHashOrderByConsentAtDesc(ownerHashForApi(owner), PageRequest.of(0, safeLimit))
+            .stream().map(shop -> Map.of("shopId", shop.getId(), "url", shop.getUrl())).toList();
+        return ResponseEntity.ok(Map.of("limit", safeLimit, "shops", items));
     }
 
     public record CreateShopRequest(String id, String url, Boolean consent) {}
