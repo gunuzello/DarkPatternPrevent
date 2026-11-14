@@ -22,7 +22,7 @@ const springTimeoutMs = () => {
 
 export async function mirrorSpringShop(shopId: string, url: string, owner: string) {
   const base = endpoint();
-  if (!base || !owner) return;
+  if (!base || !owner) return !springAuthoritative();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), springTimeoutMs());
   try {
@@ -30,8 +30,9 @@ export async function mirrorSpringShop(shopId: string, url: string, owner: strin
       method: "POST", headers: { "content-type": "application/json", "x-baromi-owner": owner },
       body: JSON.stringify({ id: shopId, url, consent: true }), signal: controller.signal,
     });
-    if (!response.ok && response.status !== 409) console.warn(`Spring shop mirror failed: ${response.status}`);
-  } catch (error) { console.warn("Spring shop mirror unavailable", error instanceof Error ? error.message : error); }
+    if (!response.ok && response.status !== 409) { console.warn(`Spring shop mirror failed: ${response.status}`); return false; }
+    return true;
+  } catch (error) { console.warn("Spring shop mirror unavailable", error instanceof Error ? error.message : error); return false; }
   finally { clearTimeout(timeout); }
 }
 
@@ -46,8 +47,9 @@ export async function mirrorSpringScan(scan: { id: string; shopId: string; targe
       body: JSON.stringify({ id: scan.id, shopId: scan.shopId, targetUrl: scan.targetUrl, executionMode: scan.executionMode, viewport: scan.viewport, purchasePath: scan.purchasePath }),
       signal: controller.signal,
     });
-    if (!response.ok && response.status !== 409) console.warn(`Spring scan mirror failed: ${response.status}`);
-  } catch (error) { console.warn("Spring scan mirror unavailable", error instanceof Error ? error.message : error); }
+    if (!response.ok && response.status !== 409) { console.warn(`Spring scan mirror failed: ${response.status}`); return false; }
+    return true;
+  } catch (error) { console.warn("Spring scan mirror unavailable", error instanceof Error ? error.message : error); return false; }
   finally { clearTimeout(timeout); }
 }
 

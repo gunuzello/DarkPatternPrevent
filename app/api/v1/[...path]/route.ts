@@ -74,7 +74,10 @@ export async function POST(request: NextRequest, context: Context) {
         dnsRecord: `${verificationDnsPrefix}.${new URL(shop.url).hostname} TXT ${verification.token}`,
       } : null,
     }, { status: 201 });
-    await mirrorSpringShop(shop.id, shop.url, token);
+    if (!await mirrorSpringShop(shop.id, shop.url, token) && springAuthoritative()) {
+      await db().shop.delete({ where: { id: shop.id } }).catch(() => undefined);
+      return error("최종 상태 저장소에 연결할 수 없어 상점을 등록하지 못했습니다.", 503);
+    }
     if (!session) response.cookies.set(cookie, token, {
       httpOnly: true, sameSite: "strict", path: "/", maxAge: 24 * 60 * 60,
       secure: request.nextUrl.protocol === "https:",
@@ -180,7 +183,10 @@ export async function POST(request: NextRequest, context: Context) {
     });
     // During the Spring migration, mirror the queue state without making the
     // legacy SQLite path depend on the new service being available.
-    await mirrorSpringScan({ id: scan.id, shopId: shop.id, targetUrl: target.url, executionMode: body.profile === "DYNAMIC" ? "DYNAMIC" : "STATIC", viewport: body.viewport, purchasePath }, session!);
+    if (!await mirrorSpringScan({ id: scan.id, shopId: shop.id, targetUrl: target.url, executionMode: body.profile === "DYNAMIC" ? "DYNAMIC" : "STATIC", viewport: body.viewport, purchasePath }, session!) && springAuthoritative()) {
+      await db().scan.delete({ where: { id: scan.id } }).catch(() => undefined);
+      return error("최종 상태 저장소에 연결할 수 없어 진단을 시작하지 못했습니다.", 503);
+    }
     await notifySpringScanStatus(scan.id, "queued");
     return Response.json({ scanId: scan.id, status: scan.status, createdAt: scan.createdAt }, { status: 202 });
   }
