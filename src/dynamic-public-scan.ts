@@ -85,7 +85,13 @@ export async function scanDynamicPublicShop(
       if (!await userField.count()) throw new Error("로그인 아이디 입력란을 찾지 못했습니다.");
       await userField.fill(credentials.username);
       await password.fill(credentials.password);
-      const submit = page.getByRole("button", { name: /로그인|sign\s*in|log\s*in/i }).or(page.locator('input[type="submit"]'));
+      // The header login trigger often remains in the DOM while the modal is
+      // open. Restrict submission to visible controls so we do not click the
+      // trigger a second time or reject an otherwise unambiguous form.
+      let submit = page.locator('form:visible button[type="submit"], form:visible input[type="submit"], button[type="submit"]:visible, input[type="submit"]:visible');
+      if (await submit.count() === 0) {
+        submit = page.locator('button:visible').filter({ hasText: /로그인|sign\s*in|log\s*in/i });
+      }
       if (await submit.count() !== 1) throw new Error("로그인 버튼을 하나로 확정하지 못했습니다.");
       await Promise.all([
         page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => {}),
