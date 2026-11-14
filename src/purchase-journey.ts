@@ -98,11 +98,11 @@ async function prepareRequiredOptions(page: Page, stage: Stage): Promise<Interac
 async function clickAndSettle(page: Page, action: Locator) {
   const before = page.url();
   await Promise.all([
-    page.waitForURL((url) => url.href !== before, { timeout: 5_000 }).catch(() => null),
+    page.waitForURL((url) => url.href !== before, { timeout: 3_000 }).catch(() => null),
     action.click(),
   ]);
-  await page.waitForLoadState("domcontentloaded").catch(() => {});
-  await page.waitForLoadState("networkidle", { timeout: 2_000 }).catch(() => {});
+  await page.waitForLoadState("domcontentloaded", { timeout: 4_000 }).catch(() => {});
+  await page.waitForTimeout(300);
 }
 
 /** Close a blocking modal only when its visible dialog exposes one unambiguous

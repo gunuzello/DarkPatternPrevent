@@ -64,10 +64,10 @@ export async function scanDynamicPublicShop(
       await route.continue();
     });
     const page = await context.newPage();
-    page.setDefaultTimeout(10_000);
+    page.setDefaultTimeout(4_000);
     const response = await page.goto(target.href, { waitUntil: "domcontentloaded", timeout: 20_000 });
     if (!response?.ok()) throw new Error("쇼핑몰 첫 화면을 불러오지 못했습니다.");
-    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+    await page.waitForTimeout(400);
     if (credentials) {
       // Many storefronts keep the login form inside a modal that is opened
       // only after the header action is clicked. Open one unambiguous login
@@ -100,7 +100,7 @@ export async function scanDynamicPublicShop(
         page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => {}),
         submit.click(),
       ]);
-      await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+      await page.waitForTimeout(400);
       if (await page.locator('input[type="password"]:visible').count()) throw new Error("로그인에 실패했거나 추가 인증이 필요합니다.");
     }
 
