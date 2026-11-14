@@ -30,20 +30,20 @@ public class ShopController {
         if (owner.isBlank() || request == null || request.consent() != Boolean.TRUE || !isPublicHttps(request.url())) {
             return ResponseEntity.badRequest().body(Map.of("error", "공개 HTTPS 쇼핑몰 URL과 검사 동의가 필요합니다."));
         }
-        var entity = shops.save(new ShopEntity(UUID.randomUUID().toString(), request.url(), ownerHash(owner), Instant.now()));
+        var entity = shops.save(new ShopEntity(UUID.randomUUID().toString(), request.url(), ownerHashForApi(owner), Instant.now()));
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("shopId", entity.getId(), "url", entity.getUrl()));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> get(@RequestHeader("X-Baromi-Owner") String owner, @PathVariable String id) {
-        return shops.findByIdAndOwnerHash(id, ownerHash(owner))
+        return shops.findByIdAndOwnerHash(id, ownerHashForApi(owner))
             .<ResponseEntity<?>>map(shop -> ResponseEntity.ok(Map.of("shopId", shop.getId(), "url", shop.getUrl())))
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     public record CreateShopRequest(String url, Boolean consent) {}
 
-    private static String ownerHash(String owner) {
+    static String ownerHashForApi(String owner) {
         try {
             var digest = MessageDigest.getInstance("SHA-256").digest(owner.getBytes(StandardCharsets.UTF_8));
             var hex = new StringBuilder(digest.length * 2);

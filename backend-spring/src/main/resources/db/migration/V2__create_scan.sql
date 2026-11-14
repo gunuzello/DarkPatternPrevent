@@ -1,0 +1,2 @@
+CREATE TABLE "Scan" (id VARCHAR(36) PRIMARY KEY, shop_id VARCHAR(36) NOT NULL, status VARCHAR(32) NOT NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL, updated_at TIMESTAMP WITH TIME ZONE NOT NULL, CONSTRAINT fk_scan_shop FOREIGN KEY (shop_id) REFERENCES "Shop"(id));
+CREATE INDEX idx_scan_shop_id ON "Scan"(shop_id);
