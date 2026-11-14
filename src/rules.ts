@@ -70,10 +70,19 @@ export function evidenceIds(snapshots: Snapshot[]) {
 
 export function detect([product, ...later]: Snapshot[], priorDisclosures: PriorFeeDisclosure[] = []): Finding[] {
   if (!product) return [];
-  return [
+  const findings = [
     ...detectPreselection(product),
     ...detectDripPricing(product, later, priorDisclosures),
     ...detectUrgencyScarcity(product),
     ...[product, ...later].flatMap((snapshot) => detectAdditionalPatterns(snapshot)),
   ];
+  // A wording signal can persist across product/cart/checkout snapshots. Keep
+  // the first occurrence as the canonical finding so reports do not show the
+  // same review item three times for one purchase flow.
+  const seen = new Set<Finding["type"]>();
+  return findings.filter((finding) => {
+    if (seen.has(finding.type)) return false;
+    seen.add(finding.type);
+    return true;
+  });
 }

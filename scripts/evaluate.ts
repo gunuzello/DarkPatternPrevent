@@ -19,7 +19,11 @@ type CaseResult = {
   durationMs: number;
 };
 
-const rules = ["PRESELECTION", "DRIP_PRICING", "URGENCY_SCARCITY"] as const;
+const rules = [
+  "PRESELECTION", "DRIP_PRICING", "URGENCY_SCARCITY", "HIDDEN_INFO", "FALSE_DISCOUNT", "DISGUISED_AD",
+  "CONFIRM_SHAMING", "FORCED_ACTION", "HIDDEN_SUBSCRIPTION", "SNEAKY_CART_ADD", "FALSE_RECOMMENDATION",
+  "BAIT_SELLING", "TRICK_QUESTION", "MISDIRECTED_HIERARCHY", "CANCELLATION_OBSTRUCTION", "PRICE_COMPARISON_OBSTRUCTION",
+] as const;
 const rate = (numerator: number, denominator: number) => denominator ? numerator / denominator : null;
 const keys = (findings: ExpectedFinding[]) => findings.map(({ type, stage }) => type + ":" + stage).sort();
 const stableObservation = (scan: Awaited<ReturnType<typeof scanDemo>>) => JSON.stringify({

@@ -18,6 +18,9 @@ const checkbox = (label: string, attributes: string) =>
 const optionCase = (id: number, title: string, html: string, expected = false): DetectionCase => ({
   id: "DP01-" + id, title, expected: expected ? [preselection] : [], pages: { product: html },
 });
+const signalCase = (id: number, title: string, type: ExpectedFinding["type"], html: string): DetectionCase => ({
+  id: "DP03-" + id, title, expected: [{ type, stage: "product" }], pages: { product: html },
+});
 
 const fee = (id: string, amount: number, label: string, required = true) =>
   `<p data-fee-id="${id}" data-won="${amount}" data-required="${required}">${label} ${amount.toLocaleString("ko-KR")}원</p>`;
@@ -85,4 +88,11 @@ export const textValidationCases = [
   priceCase(28, "긴급성만 표시", { product: "<p>오늘만 특별 할인</p>" }),
   priceCase(29, "희소성만 표시", { product: "<p>마지막 재고 2개</p>" }),
   priceCase(30, "영문 긴급성과 희소성 문구", { product: "<p>Limited time offer</p><p>Only 2 left</p>" }, [urgency]),
+  signalCase(31, "사용자 요청 없는 묶음 장바구니", "SNEAKY_CART_ADD", "<p>사용자 요청 없이 자동으로 장바구니에 추가됩니다</p>"),
+  signalCase(32, "추천 근거가 없는 인기 표기", "FALSE_RECOMMENDATION", "<p>구매자 추천</p>"),
+  signalCase(33, "목록 상품을 구매할 수 없는 상태", "BAIT_SELLING", "<p>현재 판매 불가</p>"),
+  signalCase(34, "거부 의도를 흐리는 질문", "TRICK_QUESTION", "<p>동의하지 않습니다</p>"),
+  signalCase(35, "거절 선택지를 찾기 어려운 배치", "MISDIRECTED_HIERARCHY", "<p>거절 버튼은 찾기 어려워요</p>"),
+  signalCase(36, "탈퇴 경로 확인 필요", "CANCELLATION_OBSTRUCTION", "<p>회원 탈퇴</p>"),
+  signalCase(37, "월 납부 기준만 제시", "PRICE_COMPARISON_OBSTRUCTION", "<p>월 납부 금액만 표시</p>"),
 ] satisfies DetectionCase[];
