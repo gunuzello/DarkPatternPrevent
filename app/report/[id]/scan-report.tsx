@@ -48,6 +48,7 @@ type Report = {
     candidateCount: number; durationMs?: number | null; error?: string | null;
     result?: { decisions?: { candidateId: string; label: string; confidence: number; rationale: string; suggestedRule?: string | null }[] } | null;
     usage?: { inputTokens: number; outputTokens: number; estimatedCostUsd: number } | null;
+    operatorLabels?: { candidateId: string; label: string }[] | null;
   } | null;
 };
 
@@ -55,6 +56,7 @@ export function ScanReport({ id }: { id: string }) {
   const [report, setReport] = useState<Report>();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [labels, setLabels] = useState<Record<string, string>>({});
   const router = useRouter();
 
   useEffect(() => {
@@ -121,6 +123,7 @@ export function ScanReport({ id }: { id: string }) {
         <li key={finding.id}><Link href={"/report/" + id + "/" + finding.id}>{legalRules[finding.type].title}</Link> · {stageLabels[finding.stage]}</li>
       ))}</ul> : <p>{report.executionMode === "STATIC" ? "검사한 공개 화면에서 지원하는 규칙의 위험 신호를 찾지 못했습니다. 구매 행동 이후 단계는 추가 검사가 필요합니다." : "검사한 범위에서 위험 신호가 발견되지 않았습니다."}</p>}
       {report.reviewCandidates?.length ? <section><h2>추가 검토 후보</h2><p>규칙만으로 의미를 확정하지 않은 문구와 추가 흐름입니다. AI 또는 운영자 검토 대상으로만 전달하며 자동 판정에 포함하지 않습니다.</p><ul>{report.reviewCandidates.map((candidate) => <li key={candidate.id}>{candidate.stage === "surface" ? "추가 흐름" : stageLabels[candidate.stage]} · {candidate.text} · {candidate.reason} · {candidate.evidenceIds.join(", ")}</li>)}</ul></section> : null}
+      {report.reviewCandidates?.length ? <section aria-label="운영자 라벨"><h2>운영자 라벨</h2><p>후보를 직접 확인한 뒤 라벨을 저장하면 이후 AI 평가 데이터셋에 포함됩니다.</p><ul>{report.reviewCandidates.map((candidate) => <li key={`label:${candidate.id}`}><span>{candidate.text}</span><select aria-label={`${candidate.id} 라벨`} value={labels[candidate.id] ?? ""} onChange={(event) => setLabels((current) => ({ ...current, [candidate.id]: event.target.value }))}><option value="">선택</option><option value="LIKELY_RISK">위험 가능성</option><option value="NEEDS_REVIEW">검토 필요</option><option value="LIKELY_BENIGN">정상 가능성</option><option value="INSUFFICIENT_EVIDENCE">증거 부족</option></select></li>)}</ul><button disabled={pending || !Object.keys(labels).length} onClick={async () => { setPending(true); try { await post(`scans/${id}/ai-review-labels`, { labels: Object.entries(labels).map(([candidateId, label]) => ({ candidateId, label })) }); window.location.reload(); } catch (cause) { setError(cause instanceof Error ? cause.message : "운영자 라벨을 저장하지 못했습니다."); setPending(false); } }}>운영자 라벨 저장</button></section> : null}
       <section aria-label="AI 정밀 분석">
         <h2>AI 정밀 분석</h2>
         <p>기본 보고서는 AI 호출 없이 먼저 완성됐습니다. AI 정밀 분석은 사용자가 원할 때 검토 후보만 별도로 보내는 유료 후속 기능이며 기존 증거와 규칙 판정을 덮어쓰지 않습니다.</p>
