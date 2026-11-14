@@ -15,6 +15,7 @@ import { fetchPublicHtml } from "../../../../src/public-html";
 import { createSiteVerification, hashToken, matchesVerification, verificationDnsPrefix, verificationFile, verificationName } from "../../../../src/site-verification";
 import { encryptCredentials } from "../../../../src/credential-vault";
 import { mirrorSpringScan, mirrorSpringShop, notifySpringScanStatus } from "../../../../src/spring-status";
+import { diagnosticSurfaceKinds, type DiagnosticSurfaceKind } from "../../../../src/diagnostic-surfaces";
 
 type Context = { params: Promise<{ path: string[] }> };
 type Report = Omit<Awaited<ReturnType<typeof scanDemo>>, "scenario"> & { scenario: string };
@@ -185,6 +186,28 @@ export async function POST(request: NextRequest, context: Context) {
   }
 
   const [resource, id, action] = route;
+  if (resource === "scans" && id && action === "ai-review" && route.length === 3) {
+    const limited = rateLimit(request, "ai-review", 10, 60 * 60 * 1000);
+    if (limited) return limited;
+    const scan = await db().scan.findFirst({
+      where: { id, shop: { ownerHash }, status: { in: ["COMPLETED", "PARTIAL"] }, reportPath: { not: null } },
+      select: { reportPath: true, shop: { select: { plan: true } }, aiReview: true },
+    });
+    if (!scan?.reportPath) return notFound();
+    if (scan.shop?.plan !== "PREMIUM") return error("AI 정밀 분석은 유료 플랜에서 사용자가 별도로 요청할 수 있습니다.", 402);
+    const report = await getReport(scan.reportPath);
+    const candidates = ((report as unknown as { reviewCandidates?: unknown[] } | null)?.reviewCandidates ?? []);
+    if (!candidates.length) return error("AI로 추가 분석할 검토 후보가 없습니다.", 409);
+    if (scan.aiReview?.status === "QUEUED" || scan.aiReview?.status === "RUNNING" || scan.aiReview?.status === "COMPLETED") {
+      return Response.json({ id: scan.aiReview.id, status: scan.aiReview.status }, { status: scan.aiReview.status === "COMPLETED" ? 200 : 202 });
+    }
+    const job = await db().aiReview.upsert({
+      where: { scanId: id },
+      create: { id: randomUUID(), scanId: id, status: "QUEUED", candidateCount: candidates.length },
+      update: { status: "QUEUED", requestedAt: new Date(), startedAt: null, completedAt: null, resultJson: null, usageJson: null, error: null, candidateCount: candidates.length },
+    });
+    return Response.json({ id: job.id, status: job.status }, { status: 202 });
+  }
   if (resource === "scans" && id && action === "cancel" && route.length === 3) {
     const where = { id, shop: { ownerHash } };
     const running = await db().scan.updateMany({
@@ -279,7 +302,7 @@ export async function GET(request: NextRequest, context: Context) {
   }
   if (resource !== "scans") return notFound();
   const scan = await db().scan.findFirst({
-    where: { id, shop: { ownerHash } }, include: { findings: { orderBy: { id: "asc" } } },
+    where: { id, shop: { ownerHash } }, include: { findings: { orderBy: { id: "asc" } }, aiReview: true, shop: { select: { plan: true } } },
   });
   if (!scan) return notFound();
   const active = ["QUEUED", "RUNNING"].includes(scan.status);
@@ -297,13 +320,21 @@ export async function GET(request: NextRequest, context: Context) {
     reviewNeeded: scan.findings.filter((finding) => finding.status === "REVIEW_NEEDED").length,
     notTested: active ? 0 : [...requiredStages].filter((stage) => !observedStages.has(stage)).length,
   };
+  const surfaceObservations = ((storedReport as unknown as { surfaceObservations?: { kind: DiagnosticSurfaceKind; outcome: string }[] } | null)?.surfaceObservations ?? []);
+  const surfaceCoverage = Object.fromEntries(diagnosticSurfaceKinds.map((kind) => {
+    if (scan.executionMode !== "DYNAMIC") return [kind, "SKIPPED"];
+    if (active) return [kind, "PENDING"];
+    const observations = surfaceObservations.filter((item) => item.kind === kind);
+    return [kind, observations.some((item) => item.outcome === "OBSERVED") ? "COVERED"
+      : observations.length ? "BLOCKED" : "NOT_FOUND"];
+  }));
   if (!action) {
     return Response.json({
       scanId: scan.id, shopId: scan.shopId, scenario: scan.scenario, executionMode: scan.executionMode, viewport: scan.viewport,
       durationMs: scan.durationMs,
       purchasePath: scan.purchasePath,
       status: scan.status, cancelRequested: scan.cancelRequested, currentStage: scan.currentStage,
-      progress: active ? Math.round(Math.min(scan.progress, progressStages) * 100 / progressStages) : 100, coverage, summary,
+      progress: active ? Math.round(Math.min(scan.progress, progressStages) * 100 / progressStages) : 100, coverage, surfaceCoverage, summary,
     });
   }
   if (action === "findings") return Response.json(scan.findings);
@@ -321,9 +352,17 @@ export async function GET(request: NextRequest, context: Context) {
     const findings = report
       ? scan.findings.map((stored, index) => ({ ...(report.findings[index] ?? {}), id: stored.id, type: stored.type, status: stored.status, stage: stored.stage, reason: stored.reason, ruleVersion: stored.ruleVersion }))
       : scan.findings;
+    const aiReview = scan.aiReview ? {
+      id: scan.aiReview.id, status: scan.aiReview.status, requestedAt: scan.aiReview.requestedAt,
+      completedAt: scan.aiReview.completedAt, provider: scan.aiReview.provider, model: scan.aiReview.model,
+      candidateCount: scan.aiReview.candidateCount, error: scan.aiReview.error,
+      result: scan.aiReview.resultJson ? JSON.parse(scan.aiReview.resultJson) : null,
+      usage: scan.aiReview.usageJson ? JSON.parse(scan.aiReview.usageJson) : null,
+    } : null;
     const response = Response.json({ ...report, viewport: scan.viewport, purchasePath: scan.purchasePath,
       durationMs: scan.durationMs,
-      comparison, scanId: scan.id, shopId: scan.shopId, coverage, summary,
+      comparison, scanId: scan.id, shopId: scan.shopId, coverage, surfaceCoverage, summary,
+      aiEligible: scan.shop?.plan === "PREMIUM", aiReview,
       findings });
     if (request.nextUrl.searchParams.get("download") === "1") {
       response.headers.set("Content-Disposition", `attachment; filename="baromi-${scan.id}.json"`);

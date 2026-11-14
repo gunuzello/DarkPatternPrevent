@@ -14,6 +14,7 @@ model Shop {
   consentAt        DateTime  @default(now())
   verificationHash String?
   verifiedAt       DateTime?
+  plan             String    @default("FREE")
   scans            Scan[]
 }
 
@@ -39,10 +40,29 @@ model Scan {
   baselineScanId  String?
   baseline        Scan?     @relation("ScanBaseline", fields: [baselineScanId], references: [id], onDelete: SetNull)
   rescans         Scan[]    @relation("ScanBaseline")
+  aiReview         AiReview?
 
   @@index([baselineScanId])
 
   @@index([status, createdAt])
+}
+
+model AiReview {
+  id             String    @id
+  scanId         String    @unique
+  scan           Scan      @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  status         String    @default("QUEUED")
+  requestedAt    DateTime  @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  provider       String?
+  model          String?
+  candidateCount Int       @default(0)
+  resultJson     String?
+  usageJson      String?
+  error          String?
+
+  @@index([status, requestedAt])
 }
 
 model Finding {

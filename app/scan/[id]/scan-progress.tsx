@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { stages, stageLabels, type Stage } from "../../../src/demo";
 import { post, scanRequest } from "../../scan-request";
 import { legalRules } from "../../../src/legal-rules";
+import { diagnosticSurfaceKinds, diagnosticSurfaceLabels, type DiagnosticSurfaceKind, type DiagnosticSurfaceStatus } from "../../../src/diagnostic-surfaces";
 
 type Status = "QUEUED" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED" | "CANCELLED";
 type ScanState = {
@@ -19,6 +20,7 @@ type ScanState = {
   progress: number;
   currentStage?: Stage | null;
   coverage: Record<Stage, "COVERED" | "BLOCKED" | "PENDING" | "SKIPPED">;
+  surfaceCoverage: Record<DiagnosticSurfaceKind, DiagnosticSurfaceStatus>;
   summary?: { suspected: number; reviewNeeded: number; notTested: number };
 };
 
@@ -79,6 +81,16 @@ export function ScanProgress({ id }: { id: string }) {
       <div className="stage-list">{stages.map((stage) => <div className={`stage-row ${scan.coverage[stage].toLowerCase()}`} key={stage}><span className="stage-mark" /> <strong>{stageLabels[stage]}</strong><span>{
         scan.coverage[stage] === "COVERED" ? (scan.executionMode === "STATIC" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : scan.coverage[stage] === "SKIPPED" ? "선택 경로에 없음" : scan.coverage[stage] === "BLOCKED" ? "미검사" : "대기"
       }</span></div>)}</div>
+      <section className="rule-summary" aria-label="별도 탐색 영역">
+        <div className="rule-summary-head"><strong>별도 탐색 영역</strong><span>{diagnosticSurfaceKinds.length}개 영역</span></div>
+        <p>구매 3단계 밖에서 나타나는 다크패턴을 확인하기 위해 다음 화면도 별도로 찾습니다.</p>
+        <div className="stage-list">{diagnosticSurfaceKinds.map((kind) => {
+          const status = scan.surfaceCoverage?.[kind] ?? (active ? "PENDING" : "NOT_FOUND");
+          return <div className={`stage-row ${status.toLowerCase()}`} key={kind}><span className="stage-mark"/><strong>{diagnosticSurfaceLabels[kind]}</strong><span>{
+            status === "COVERED" ? "검사 완료" : status === "BLOCKED" ? "접근 실패" : status === "NOT_FOUND" ? "경로 미발견" : status === "SKIPPED" ? "동적 진단에서 확인" : "탐색 대기"
+          }</span></div>;
+        })}</div>
+      </section>
       {scan.summary && <div className="scan-mini-summary"><span>위험 신호 <b>{scan.summary.suspected}</b></span><span>검토 필요 <b>{scan.summary.reviewNeeded}</b></span><span>미검사 <b>{scan.summary.notTested}</b></span></div>}
       <section className="rule-summary" aria-label="진단 항목"><div className="rule-summary-head"><strong>진단 항목</strong><span>총 {Object.keys(legalRules).length}개 유형</span></div><p>각 구매 단계에서 아래 유형을 규칙과 증거로 확인합니다. 이 목록은 구매 단계와 별도의 진단 기능 목록입니다.</p><div className="rule-chips">{Object.entries(legalRules).map(([key, rule]) => <span key={key} title={rule.title}>{rule.title}</span>)}</div></section>
       {active && <button className="action secondary" disabled={pending || scan.cancelRequested} onClick={() => act("cancel")}>진단 중단</button>}
