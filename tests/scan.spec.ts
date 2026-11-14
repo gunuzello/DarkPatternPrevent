@@ -13,6 +13,7 @@ test("테스트 계정은 암호화된 일회성 값으로만 보관한다", () 
 });
 import { scanDemo } from "../src/scan";
 import { paidOptionFromText } from "../src/price-text";
+import { detect } from "../src/rules";
 
 const origin = "http://127.0.0.1:3100";
 
@@ -50,6 +51,17 @@ test("정상 데모의 미선택 옵션과 사전 공개 비용은 탐지하지 
   expect(report.snapshots[0].options[0].selected).toBe(false);
   expect(report.snapshots.every(({ fees }) => fees[0]?.won === 3000)).toBe(true);
   expect(report.findings).toEqual([]);
+});
+
+test("사은품·무료 혜택의 기본 표시는 유료 사전선택으로 오탐하지 않는다", async () => {
+  const product = {
+    evidenceId: "gift-product", stage: "product" as const, url: "https://shop.test/p/1", screenshot: "",
+    priceLines: ["10,000원"], textLines: [], fees: [], options: [{
+      label: "무료 사은품 증정", won: 1_000, selected: true,
+      bounds: { x: 0, y: 0, width: 10, height: 10 },
+    }],
+  };
+  expect(detect([product])).toEqual([]);
 });
 
 test("위험 데모의 바로구매 경로는 장바구니를 선택 경로에서 제외한다", async ({ browser }, info) => {
