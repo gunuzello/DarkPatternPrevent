@@ -105,6 +105,15 @@ async function clickAndSettle(page: Page, action: Locator) {
   await page.waitForLoadState("networkidle", { timeout: 2_000 }).catch(() => {});
 }
 
+async function isCheckoutLike(page: Page) {
+  const url = page.url();
+  if (/(?:checkout|order|payment|buy)/i.test(new URL(url).pathname)) return true;
+  const text = await page.locator("body").innerText().catch(() => "");
+  const hasCheckoutCopy = /(?:주문서|주문s*정보|결제s*정보|배송s*정보|checkout|payment|places+order)/i.test(text);
+  const hasCustomerForm = await page.locator('input, select, textarea').count() > 0;
+  return hasCheckoutCopy && hasCustomerForm;
+}
+
 export type JourneyObservation = {
   stage: Stage;
   url: string;
@@ -156,6 +165,8 @@ export async function explorePurchaseJourney(
     observations.push({ stage, url: before, action: {
       id: "product:direct-buy", stage, kind: "NAVIGATION", capturedAt: new Date().toISOString(), outcome: "OBSERVED",
     }});
+    if (!await isCheckoutLike(page)) return { observations, network, reached: "product" as Stage,
+      blocker: { stage: "product" as Stage, code: "ACTION_FAILED" as const, action: "DIRECT_BUY" as const, candidateCount: 1 } };
     stage = "checkout";
     await onStage?.(stage);
     await Promise.allSettled([...pending]);
@@ -196,6 +207,8 @@ export async function explorePurchaseJourney(
   observations.push({ stage, url: cartUrl, action: {
     id: "cart:open-checkout", stage, kind: "NAVIGATION", capturedAt: new Date().toISOString(), outcome: "OBSERVED",
   }});
+  if (!await isCheckoutLike(page)) return { observations, network, reached: "cart" as Stage,
+    blocker: { stage: "cart" as Stage, code: "ACTION_FAILED" as const, action: "OPEN_CHECKOUT" as const, candidateCount: 1 } };
   stage = "checkout";
   await onStage?.(stage);
   await Promise.allSettled([...pending]);
