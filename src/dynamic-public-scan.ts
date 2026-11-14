@@ -13,6 +13,7 @@ import { collectReviewCandidates, collectSurfaceReviewCandidates } from "./revie
 import { structuredProductLinks } from "./structured-product-links";
 import type { TestCredentials } from "./credential-vault";
 import { classifyDynamicFailure } from "./scan-failure";
+import { summarizeAiUsage } from "./ai-cost";
 
 const rootHost = (hostname: string) => hostname.replace(/^www\./, "");
 
@@ -205,6 +206,7 @@ export async function scanDynamicPublicShop(
       networkPriceEvidence: journey.network,
       priceLedger: buildPriceLedger(snapshots, journey.network, firstPriceExposure),
       reviewCandidates: [...collectReviewCandidates(snapshots), ...collectSurfaceReviewCandidates(journey.surfaceObservations)],
+      aiUsage: summarizeAiUsage([]),
       findings: detect(snapshots, firstPriceExposure?.feeMentions), collectionFailure: journeyFailure, collectionFailureCode: journeyFailure ? classifyDynamicFailure(journeyFailure) : null,
     };
     await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");

@@ -11,6 +11,12 @@ test("테스트 계정은 암호화된 일회성 값으로만 보관한다", () 
   expect(ciphertext).not.toContain("secret-password");
   expect(decryptCredentials(ciphertext)).toEqual({ username: "test-user", password: "secret-password" });
 });
+
+test("AI를 호출하지 않은 진단은 비용을 0으로 계측한다", async () => {
+  const { summarizeAiUsage, estimateAiUsage } = await import("../src/ai-cost");
+  expect(summarizeAiUsage([])).toMatchObject({ calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 });
+  expect(estimateAiUsage({ provider: "none", model: "none", purpose: "test", inputTokens: 1000, outputTokens: 500 })).toMatchObject({ estimatedCostUsd: 0 });
+});
 import { scanDemo } from "../src/scan";
 import { paidOptionFromText } from "../src/price-text";
 import { detect } from "../src/rules";
