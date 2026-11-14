@@ -1,9 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { db } from "./db";
 import { estimateAiUsage } from "./ai-cost";
+import { buildAiCandidatePayload } from "./ai-review-payload";
+export { buildAiCandidatePayload } from "./ai-review-payload";
 
-type Candidate = { id: string; kind: string; stage: string; text: string; reason: string; evidenceIds: string[] };
-type Evidence = { evidenceId?: string; stage?: string; url?: string; priceLines?: string[]; options?: unknown[]; precheckedSignals?: unknown[]; surfaceSignals?: unknown[] };
+type Candidate = import("./ai-review-payload").ReviewCandidate;
+type Evidence = import("./ai-review-payload").ReviewEvidence;
 type AiDecision = {
   candidateId: string;
   label: "LIKELY_RISK" | "NEEDS_REVIEW" | "LIKELY_BENIGN" | "INSUFFICIENT_EVIDENCE";
@@ -31,11 +33,6 @@ const reviewSchema = {
     },
   },
 };
-
-const redact = (value: string) => value
-  .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, "[이메일 가림]")
-  .replace(/(?:\+?82[- ]?)?0?1[016789][- ]?\d{3,4}[- ]?\d{4}/g, "[연락처 가림]")
-  .replace(/\b\d{6}[- ]?[1-4]\d{6}\b/g, "[식별번호 가림]");
 
 function outputText(body: unknown) {
   if (!body || typeof body !== "object") return "";
@@ -79,22 +76,7 @@ export async function runAiReviewJob(id: string) {
     const model = process.env.BAROMI_AI_MODEL;
     if (!endpoint || !apiKey || !model) throw new Error("AI 정밀 분석 제공자가 설정되지 않았습니다.");
     const report = JSON.parse(await readFile(job.scan.reportPath, "utf8")) as { reviewCandidates?: Candidate[]; snapshots?: Evidence[] };
-    const evidenceById = new Map((report.snapshots ?? []).map((item) => [item.evidenceId, item]));
-    const candidates = (report.reviewCandidates ?? []).slice(0, 40).map((item) => ({
-      ...item,
-      text: redact(item.text).slice(0, 1_000),
-      reason: redact(item.reason).slice(0, 500),
-      evidence: item.evidenceIds.slice(0, 4).map((id) => {
-        const evidence = evidenceById.get(id);
-        return evidence ? {
-          evidenceId: id, stage: evidence.stage, url: evidence.url,
-          priceLines: (evidence.priceLines ?? []).slice(0, 20).map(redact),
-          options: (evidence.options ?? []).slice(0, 20),
-          precheckedSignals: (evidence.precheckedSignals ?? []).slice(0, 20),
-          surfaceSignals: (evidence.surfaceSignals ?? []).slice(0, 20),
-        } : { evidenceId: id };
-      }),
-    }));
+    const candidates = buildAiCandidatePayload(report);
     if (!candidates.length) throw new Error("AI로 추가 분석할 검토 후보가 없습니다.");
     await store.aiReview.update({ where: { id }, data: { candidateCount: candidates.length, provider: new URL(endpoint).hostname, model } });
     const controller = new AbortController();

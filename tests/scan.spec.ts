@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { decryptCredentials, encryptCredentials } from "../src/credential-vault";
+import { buildAiCandidatePayload } from "../src/ai-review-payload";
 
 test("테스트 계정은 암호화된 일회성 값으로만 보관한다", () => {
   process.env.BAROMI_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
@@ -16,6 +17,19 @@ test("AI를 호출하지 않은 진단은 비용을 0으로 계측한다", async
   const { summarizeAiUsage, estimateAiUsage } = await import("../src/ai-cost");
   expect(summarizeAiUsage([])).toMatchObject({ calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 });
   expect(estimateAiUsage({ provider: "none", model: "none", purpose: "test", inputTokens: 1000, outputTokens: 500 })).toMatchObject({ estimatedCostUsd: 0 });
+});
+
+test("AI 후보 payload는 개인정보를 가리고 관찰 증거만 제한해 전달한다", () => {
+  const payload = buildAiCandidatePayload({
+    reviewCandidates: [{ id: "c1", kind: "EXPLORATION_UNVERIFIED", stage: "surface", text: "문의 test@example.com", reason: "연락처 010-1234-5678", evidenceIds: ["e1", "missing"] }],
+    snapshots: [{ evidenceId: "e1", stage: "product", url: "https://shop.test/p/1", priceLines: Array.from({ length: 30 }, (_, i) => `${i}원`), options: Array.from({ length: 30 }, () => ({ label: "옵션" })), precheckedSignals: ["signal"], surfaceSignals: ["surface"] }],
+  });
+  expect(payload).toHaveLength(1);
+  expect(payload[0].text).not.toContain("test@example.com");
+  expect(payload[0].reason).not.toContain("010-1234-5678");
+  expect(payload[0].evidence[0].priceLines).toHaveLength(20);
+  expect(payload[0].evidence[0].options).toHaveLength(20);
+  expect(payload[0].evidence[1]).toEqual({ evidenceId: "missing" });
 });
 import { scanDemo } from "../src/scan";
 import { paidOptionFromText } from "../src/price-text";
