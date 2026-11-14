@@ -19,10 +19,15 @@ async function main() {
       }
       const springJob = await claimSpringScan().catch((error) => { console.warn(error instanceof Error ? error.message : error); return null; });
       if (springJob) {
-        const started = await store.scan.updateMany({ where: { id: springJob.scanId, status: "QUEUED" }, data: { status: "RUNNING", startedAt: new Date(), durationMs: null } });
+        const local = await store.scan.findUnique({ where: { id: springJob.scanId }, select: { status: true, targetUrl: true } });
+        const targetMatches = local?.targetUrl === springJob.targetUrl;
+        const started = targetMatches
+          ? await store.scan.updateMany({ where: { id: springJob.scanId, status: "QUEUED" }, data: { status: "RUNNING", startedAt: new Date(), durationMs: null } })
+          : { count: 0 };
         if (started.count) {
           await runScanJob(springJob.scanId, springJob.targetUrl ?? "").catch((error) => console.error(springJob.scanId, error));
         } else {
+          if (local && !targetMatches) console.error(`${springJob.scanId} Spring/SQLite target mismatch; refusing to run`);
           await notifySpringScanStatus(springJob.scanId, "failed");
         }
         continue;
