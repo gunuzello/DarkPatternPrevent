@@ -22,6 +22,8 @@ npm run worker
 
 운영 환경에서는 `RETENTION_DAYS`(기본 30일)를 설정하고 `npm run cleanup:retention`을 주기적으로 실행하세요. 종료된 진단의 데이터베이스 레코드와 증거 이미지를 함께 삭제하며, 진행 중인 진단은 삭제하지 않습니다.
 
+SQLite와 증거를 함께 백업하려면 워커와 웹 프로세스를 중지한 유지보수 창에서 `BACKUP_DIR=/secure/backups npm run backup`을 실행하세요. 백업 디렉터리에는 데이터베이스 파일과 `scan-results`가 같은 시각 스냅샷으로 저장됩니다. 복구는 새 운영 디렉터리에 두 항목을 함께 복원한 뒤 `DATABASE_URL`과 `SCAN_RESULTS_DIR`을 해당 경로로 지정하고 마이그레이션 상태와 보고서 다운로드를 확인해야 합니다.
+
 동적 브라우저 실행 제한은 `SCAN_TIMEOUT_MS`로 조정할 수 있습니다. 기본값은 280초이며 30초~300초 범위로만 적용됩니다.
 
 배포 상태 확인은 `GET /api/v1/health`를 사용합니다. 정상일 때만 `status: "ok"`를 반환하며, 사용자·상점 데이터는 포함하지 않습니다.
