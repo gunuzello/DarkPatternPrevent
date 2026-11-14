@@ -1,7 +1,7 @@
 package com.baromi.backend.scan;
 import com.baromi.backend.shop.ShopController;
 import com.baromi.backend.shop.ShopRepository;
-import java.time.Instant; import java.util.LinkedHashMap; import java.util.Map; import java.util.UUID;
+import java.net.URI; import java.time.Instant; import java.util.LinkedHashMap; import java.util.Map; import java.util.UUID;
 import org.springframework.http.*; import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,7 +11,10 @@ public class ScanController {
  private final String workerToken;
  public ScanController(ScanRepository scans,ShopRepository shops,@Value("${baromi.worker-token:}") String workerToken){this.scans=scans;this.shops=shops;this.workerToken=workerToken;}
  @PostMapping public ResponseEntity<?> create(@RequestHeader("X-Baromi-Owner") String owner,@RequestBody CreateScanRequest request){
-  if(owner.isBlank()||request==null||request.shopId()==null||shops.findByIdAndOwnerHash(request.shopId(),ShopController.ownerHashForApi(owner)).isEmpty()) return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error","상점을 찾을 수 없습니다."));
+  if(owner.isBlank()||request==null||request.shopId()==null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error","상점을 찾을 수 없습니다."));
+  var shop = shops.findByIdAndOwnerHash(request.shopId(),ShopController.ownerHashForApi(owner));
+  if(shop.isEmpty()) return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error","상점을 찾을 수 없습니다."));
+  if(!sameHttpsOrigin(shop.get().getUrl(), request.targetUrl()) || !isAllowedExecution(request.executionMode())) return ResponseEntity.badRequest().body(Map.of("error","등록된 쇼핑몰의 HTTPS 주소와 허용된 실행 모드가 필요합니다."));
   if (request.id() != null && scans.findById(request.id()).isPresent()) return ResponseEntity.ok(Map.of("scanId", request.id(), "status", "queued", "mirrored", true));
   var scan=scans.save(new ScanEntity(request.id() == null ? UUID.randomUUID().toString() : request.id(),request.shopId(),"queued",Instant.now(),request.targetUrl(),request.executionMode(),request.viewport(),request.purchasePath()));
   return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of("scanId",scan.getId(),"status",scan.getStatus()));
@@ -65,5 +68,11 @@ public class ScanController {
    case "succeeded","failed","cancelled" -> false;
    default -> false;
   };
+ }
+ private static boolean isAllowedExecution(String mode){return mode==null || mode.equals("STATIC") || mode.equals("DYNAMIC");}
+ private static boolean sameHttpsOrigin(String registered,String target){
+  if(target==null || target.isBlank()) return false;
+  try { var base=URI.create(registered); var requested=URI.create(target); return "https".equalsIgnoreCase(requested.getScheme()) && requested.getHost()!=null && requested.getPort()==-1 && requested.getHost().equalsIgnoreCase(base.getHost()); }
+  catch(IllegalArgumentException ignored){ return false; }
  }
 }

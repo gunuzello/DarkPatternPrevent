@@ -109,4 +109,16 @@ class ScanControllerTest {
             .andExpect(jsonPath("$.shopId").value("shop-1"))
             .andExpect(jsonPath("$.scans[0].scanId").value("scan-4"));
     }
+
+    @Test
+    void scanTargetMustStayOnRegisteredHttpsOrigin() throws Exception {
+        var shop = new com.baromi.backend.shop.ShopEntity("shop-safe", "https://shop.example", ShopController.ownerHashForApi("owner-1"), Instant.now());
+        when(shops.findByIdAndOwnerHash("shop-safe", ShopController.ownerHashForApi("owner-1"))).thenReturn(Optional.of(shop));
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/scans")
+                .header("X-Baromi-Owner", "owner-1")
+                .contentType("application/json")
+                .content("{\"id\":\"scan-safe\",\"shopId\":\"shop-safe\",\"targetUrl\":\"https://attacker.example/\",\"executionMode\":\"DYNAMIC\"}"))
+            .andExpect(status().isBadRequest());
+    }
 }
