@@ -44,6 +44,7 @@ async function resolvePublicAddress(dns: Resolver, hostname: string) {
 }
 
 const maxBytes = 2 * 1024 * 1024;
+const retryDelayMs = (attempt: number) => 150 * 2 ** attempt;
 
 function download(url: URL, address: string) {
   return new Promise<{ redirect: string } | { html: string }>((resolve, reject) => {
@@ -97,9 +98,20 @@ export async function fetchPublicHtml(input: string) {
   const rootHost = url.hostname.replace(/^www\./, "");
   const dns = new Resolver({ timeout: 2500, tries: 1 });
   for (let attempt = 0; attempt < 4; attempt++) {
-    const address = await resolvePublicAddress(dns, url.hostname);
-    if (!address) throw new Error("공개 IP로 연결할 수 없습니다.");
-    const result = await download(url, address);
+    let result: Awaited<ReturnType<typeof download>> | undefined;
+    let lastError: unknown;
+    for (let retry = 0; retry < 2; retry++) {
+      try {
+        const address = await resolvePublicAddress(dns, url.hostname);
+        if (!address) throw new Error("공개 IP로 연결할 수 없습니다.");
+        result = await download(url, address);
+        break;
+      } catch (error) {
+        lastError = error;
+        if (retry === 0) await new Promise((resolve) => setTimeout(resolve, retryDelayMs(retry)));
+      }
+    }
+    if (!result) throw lastError instanceof Error ? lastError : new Error("공개 HTML 페이지를 읽을 수 없습니다.");
     if ("html" in result) return { url: url.href, html: result.html };
     url = publicShopUrl(new URL(result.redirect, url).href);
     if (!url || url.hostname.replace(/^www\./, "") !== rootHost) {
