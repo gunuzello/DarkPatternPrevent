@@ -28,6 +28,7 @@ async function main() {
           targetHost: new URL(job.scan.targetUrl).hostname, executionMode: job.scan.executionMode,
           candidate, prediction: decision, operatorLabel: operatorLabels.find((item) => item.candidateId === candidateId)?.label ?? null,
           model: job.model, provider: job.provider, usage: job.usageJson ? JSON.parse(job.usageJson) : null,
+          durationMs: job.durationMs,
         }));
       }
     }
