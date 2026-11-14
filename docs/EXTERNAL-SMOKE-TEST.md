@@ -38,3 +38,5 @@
 ## 로그인 후 진단 CLI
 
 같은 세 환경변수(`BAROMI_SMOKE_URL`, `BAROMI_SMOKE_USERNAME`, `BAROMI_SMOKE_PASSWORD`)로 `npm run scan:external`을 실행하면 로그인 후 주문서 직전까지 동적 진단을 재현할 수 있다. 임시 상점·진단 레코드는 종료 시 삭제되며 결제 제출은 수행하지 않는다.
+
+`BAROMI_SMOKE_REPEAT=2` 또는 `3`을 지정하면 같은 조건으로 반복 실행하고, 발견 항목·최종 도달 단계·완료 상태의 일치율(`repeatability`)을 출력한다. 이 값은 탐지 정확도가 아니라 수집 실행의 재현성 지표다.
