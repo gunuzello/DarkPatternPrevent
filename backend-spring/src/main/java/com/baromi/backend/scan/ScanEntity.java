@@ -11,4 +11,5 @@ public class ScanEntity {
  protected ScanEntity() {}
  public ScanEntity(String id,String shopId,String status,Instant now){this.id=id;this.shopId=shopId;this.status=status;this.createdAt=now;this.updatedAt=now;}
  public String getId(){return id;} public String getShopId(){return shopId;} public String getStatus(){return status;}
+ public void setStatus(String status){this.status=status; this.updatedAt=Instant.now();}
 }

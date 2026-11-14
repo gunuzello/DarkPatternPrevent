@@ -13,4 +13,6 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: ${FLYWAY_ENABLED:false}
+baromi:
+  worker-token: ${BAROMI_WORKER_TOKEN:}
 
