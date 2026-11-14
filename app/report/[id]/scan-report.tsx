@@ -26,6 +26,7 @@ type Report = {
   collectionFailure?: string;
   collectionFailureCode?: string;
   durationMs: number | null;
+  stageTimingsMs?: Record<string, number>;
   targetUrl: string;
   coverage: Record<Stage, "COVERED" | "BLOCKED" | "PENDING" | "SKIPPED">;
   summary: { suspected: number; reviewNeeded: number; notTested: number };
@@ -65,6 +66,7 @@ export function ScanReport({ id }: { id: string }) {
       <p><a href={`/api/v1/scans/${encodeURIComponent(id)}/report?download=1`} download={`baromi-${id}.json`}>보고서 JSON 다운로드</a></p>
       <p>화면 환경 · {report.viewport === "MOBILE" ? "모바일 390×844" : "PC 1440×1000"} · {report.purchasePath === "DIRECT" ? "바로구매" : "장바구니 경유"}</p>
       {report.durationMs !== null && <p>진단 소요 시간 · {(report.durationMs / 1000).toFixed(1)}초</p>}
+      {report.stageTimingsMs && <p>단계별 도달 시간 · {Object.entries(report.stageTimingsMs).map(([stage, ms]) => `${stageLabels[stage as Stage] ?? stage} ${(ms / 1000).toFixed(1)}초`).join(" · ")}</p>}
       <dl className="summary">
         <div><dt>위험 의심</dt><dd>{report.summary.suspected}</dd></div>
         <div><dt>확인 필요</dt><dd>{report.summary.reviewNeeded}</dd></div>

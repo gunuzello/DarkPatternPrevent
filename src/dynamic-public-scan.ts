@@ -40,6 +40,8 @@ export async function scanDynamicPublicShop(
   credentials?: TestCredentials,
 ) {
   const target = new URL(targetUrl);
+  const stageStartedAt = Date.now();
+  const stageTimingsMs: Record<string, number> = {};
   await mkdir(directory, { recursive: true });
   const mobile = viewport === "MOBILE";
   const context = await browser.newContext({
@@ -179,10 +181,11 @@ export async function scanDynamicPublicShop(
     await mkdir(directory, { recursive: true });
     const snapshots: Snapshot[] = [];
     const interactions: InteractionEvidence[] = [];
-    const journeyTimeoutMs = Math.min(Math.max(Number(process.env.DYNAMIC_JOURNEY_TIMEOUT_MS ?? 120_000), 20_000), 300_000);
+    const journeyTimeoutMs = Math.min(Math.max(Number(process.env.DYNAMIC_JOURNEY_TIMEOUT_MS ?? 60_000), 20_000), 120_000);
     let journeyFailure: string | null = null;
     let journeyTimer: ReturnType<typeof setTimeout> | undefined;
     const journeyPromise = explorePurchaseJourney(page, async (stage) => {
+      stageTimingsMs[stage] = Date.now() - stageStartedAt;
       const snapshot = await capture(page, stage, directory, page.locator("body"), page.url(), true);
       snapshots.push(snapshot);
       if (stage === "product") interactions.push(...await observePaidOptionChanges(page, page.locator("body"), stage));
@@ -205,6 +208,7 @@ export async function scanDynamicPublicShop(
       explorationBlocker: journey.blocker ?? null,
       surfaceDestinations: journey.surfaceDestinations,
       surfaceObservations: journey.surfaceObservations,
+      stageTimingsMs,
       networkPriceEvidence: journey.network,
       priceLedger: buildPriceLedger(snapshots, journey.network, firstPriceExposure),
       reviewCandidates,
