@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { expect, test } from "@playwright/test";
+import { db } from "../src/db";
 
 const origin = "http://127.0.0.1:3100";
 const riskyUrl = origin + "/demo/risky/product";
@@ -74,6 +75,14 @@ test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async
 
 test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진단한다", async ({ page, playwright }) => {
   test.setTimeout(120_000);
+  // Keep retries isolated from queued/running jobs left by an interrupted
+  // local run; otherwise the worker may spend the test window on stale work.
+  const store = db();
+  await store.scan.updateMany({
+    where: { status: { in: ["QUEUED", "RUNNING"] } },
+    data: { status: "CANCELLED", cancelRequested: true },
+  });
+  await store.$disconnect();
   worker = spawn(process.execPath, ["--import", "tsx", "scripts/worker.ts"], {
     env: {
       ...process.env,
