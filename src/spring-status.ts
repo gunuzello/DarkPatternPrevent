@@ -1,10 +1,14 @@
 const endpoint = () => process.env.BAROMI_SPRING_API_URL?.replace(/\/$/, "");
+const springTimeoutMs = () => {
+  const configured = Number(process.env.BAROMI_SPRING_TIMEOUT_MS ?? 800);
+  return Number.isFinite(configured) ? Math.min(Math.max(configured, 200), 5_000) : 800;
+};
 
 export async function mirrorSpringShop(shopId: string, url: string, owner: string) {
   const base = endpoint();
   if (!base || !owner) return;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 3_000);
+  const timeout = setTimeout(() => controller.abort(), springTimeoutMs());
   try {
     const response = await fetch(`${base}/api/v1/shops`, {
       method: "POST", headers: { "content-type": "application/json", "x-baromi-owner": owner },
@@ -19,7 +23,7 @@ export async function mirrorSpringScan(scan: { id: string; shopId: string; targe
   const base = endpoint();
   if (!base || !owner) return;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 3_000);
+  const timeout = setTimeout(() => controller.abort(), springTimeoutMs());
   try {
     const response = await fetch(`${base}/api/v1/scans`, {
       method: "POST", headers: { "content-type": "application/json", "x-baromi-owner": owner },
@@ -37,7 +41,7 @@ export async function notifySpringScanStatus(scanId: string, status: "queued" | 
   const token = process.env.BAROMI_WORKER_TOKEN;
   if (!base || !token) return;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 3_000);
+  const timeout = setTimeout(() => controller.abort(), springTimeoutMs());
   try {
     const response = await fetch(`${base}/api/v1/scans/${encodeURIComponent(scanId)}/status`, {
       method: "PATCH",

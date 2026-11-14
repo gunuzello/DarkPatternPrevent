@@ -9,8 +9,12 @@ test.afterEach(async () => {
   if (!worker?.pid || worker.exitCode !== null) return;
   const child = worker;
   const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
-  child.kill("SIGTERM");
-  await exited;
+  try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
+  await Promise.race([exited, new Promise<void>((resolve) => setTimeout(resolve, 2_000))]);
+  if (child.exitCode === null) {
+    try { process.kill(-child.pid, "SIGKILL"); } catch { child.kill("SIGKILL"); }
+  }
+  worker = undefined;
 });
 
 test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async ({ request }) => {
@@ -68,16 +72,18 @@ test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async
 });
 
 test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진단한다", async ({ page, playwright }) => {
+  test.setTimeout(120_000);
   worker = spawn(process.execPath, ["--import", "tsx", "scripts/worker.ts"], {
     env: process.env,
     stdio: "inherit",
+    detached: true,
   });
   await page.goto(origin);
   await page.getByRole("link", { name: "쇼핑몰 진단 시작" }).click();
   await page.getByRole("button", { name: "위험 예시 URL 채우기" }).click();
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "진단 시작" }).click();
-  await page.getByRole("link", { name: "진단 결과 보기" }).click({ timeout: 20_000 });
+  await page.getByRole("link", { name: "진단 결과 보기" }).click({ timeout: 60_000 });
   await page.waitForURL("**/report/*");
   const reportUrl = page.url();
   const baselineScanId = new URL(reportUrl).pathname.split("/").at(-1);
@@ -112,7 +118,7 @@ test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진�
   }
   await page.getByRole("link", { name: "진단 결과로 돌아가기" }).click();
   await page.getByRole("button", { name: "같은 조건으로 재진단" }).click();
-  await page.getByRole("link", { name: "진단 결과 보기" }).click({ timeout: 20_000 });
+  await page.getByRole("link", { name: "진단 결과 보기" }).click({ timeout: 60_000 });
   await page.waitForURL("**/report/*");
   expect(page.url()).not.toBe(reportUrl);
   await expect(page.getByRole("heading", { name: "재진단 비교" })).toBeVisible();

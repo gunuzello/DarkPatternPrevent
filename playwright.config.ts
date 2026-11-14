@@ -19,6 +19,12 @@ export default defineConfig({
     url: process.env.DEMO_ORIGIN,
     timeout: 60_000,
     reuseExistingServer: false,
-    env: { NEXT_TELEMETRY_DISABLED: "1" },
+    env: {
+      NEXT_TELEMETRY_DISABLED: "1",
+      DEMO_ORIGIN: process.env.DEMO_ORIGIN,
+      DATABASE_URL: process.env.DATABASE_URL,
+      SCAN_RESULTS_DIR: process.env.SCAN_RESULTS_DIR,
+      PLAYWRIGHT_RUN_DIRECTORY: process.env.PLAYWRIGHT_RUN_DIRECTORY,
+    },
   },
 });
