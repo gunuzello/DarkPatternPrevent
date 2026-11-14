@@ -35,7 +35,7 @@ export async function runScanJob(id: string, targetUrl: string) {
         throw error;
       }
     }
-    const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL, timeout: 20_000 });
+    let browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL, timeout: 20_000 });
     const proxy = requested.executionMode === "DYNAMIC"
       ? await startSafeBrowserProxy().catch(async (error) => { await browser.close(); throw error; })
       : null;
@@ -51,12 +51,13 @@ export async function runScanJob(id: string, targetUrl: string) {
         if (scan.cancelRequested) throw new Error("진단 중단");
       };
       let report;
+      const scanWithBrowser = (instance: typeof browser) => target.scenario === "public"
+        ? requested.executionMode === "DYNAMIC" && proxy
+          ? scanDynamicPublicShop(instance, target.url, directory, proxy.server, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", onStage, requested.purchasePath === "DIRECT" ? "DIRECT" : "CART", credentials)
+          : scanPublicShop(instance, target.url, directory, onStage, undefined, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", requested.purchasePath === "DIRECT" ? "DIRECT" : "CART")
+        : scanDemo(instance, new URL(target.url).origin, target.scenario, directory, onStage, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", requested.purchasePath === "DIRECT" ? "DIRECT" : "CART");
       try {
-        const scanPromise: Promise<any> = target.scenario === "public"
-          ? requested.executionMode === "DYNAMIC" && proxy
-            ? scanDynamicPublicShop(browser, target.url, directory, proxy.server, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", onStage, requested.purchasePath === "DIRECT" ? "DIRECT" : "CART", credentials)
-            : scanPublicShop(browser, target.url, directory, onStage, undefined, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", requested.purchasePath === "DIRECT" ? "DIRECT" : "CART")
-          : scanDemo(browser, new URL(target.url).origin, target.scenario, directory, onStage, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", requested.purchasePath === "DIRECT" ? "DIRECT" : "CART");
+        let scanPromise: Promise<any> = scanWithBrowser(browser);
         const dynamicTimeoutMs = requested.executionMode === "DYNAMIC"
           ? Math.min(Math.max(Number(process.env.DYNAMIC_SCAN_TIMEOUT_MS ?? 180_000), 30_000), 600_000)
           : 0;
@@ -67,8 +68,14 @@ export async function runScanJob(id: string, targetUrl: string) {
           ])
           : scanPromise;
       } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        if (requested.executionMode === "STATIC" && /browser|context|Target\.createBrowserContext/i.test(message)) {
+          await browser.close().catch(() => {});
+          browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL, timeout: 20_000 });
+          report = await scanWithBrowser(browser);
+        } else {
         if (requested.executionMode !== "DYNAMIC") throw error;
-        const message = error instanceof Error ? error.message : "동적 구매 흐름을 수집하지 못했습니다.";
+        const dynamicMessage = message || "동적 구매 흐름을 수집하지 못했습니다.";
         report = {
           comparisonVersion: scanComparisonVersion,
           scanStatus: "PARTIAL" as const, executionMode: "DYNAMIC" as const,
@@ -76,10 +83,11 @@ export async function runScanJob(id: string, targetUrl: string) {
           purchasePath: requested.purchasePath === "DIRECT" ? "DIRECT" as const : "CART" as const,
           scenario: "public" as const, targetUrl, snapshots: [], interactions: [],
           explorationBlocker: null, networkPriceEvidence: [], priceLedger: buildPriceLedger([]), findings: [],
-          collectionFailure: message,
-          collectionFailureCode: classifyDynamicFailure(message),
+          collectionFailure: dynamicMessage,
+          collectionFailureCode: classifyDynamicFailure(dynamicMessage),
         };
         await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
+        }
       }
       const finished = await store.scan.update({
         where: { id, status: "RUNNING", cancelRequested: false },

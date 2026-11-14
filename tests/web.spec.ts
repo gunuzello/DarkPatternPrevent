@@ -8,11 +8,12 @@ let worker: ChildProcess | undefined;
 test.afterEach(async () => {
   if (!worker?.pid || worker.exitCode !== null) return;
   const child = worker;
+  const pid = child.pid!;
   const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
-  try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
+  try { process.kill(-pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
   await Promise.race([exited, new Promise<void>((resolve) => setTimeout(resolve, 2_000))]);
   if (child.exitCode === null) {
-    try { process.kill(-child.pid, "SIGKILL"); } catch { child.kill("SIGKILL"); }
+    try { process.kill(-pid, "SIGKILL"); } catch { child.kill("SIGKILL"); }
   }
   worker = undefined;
 });
