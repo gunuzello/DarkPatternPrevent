@@ -120,7 +120,14 @@ export async function scanDynamicPublicShop(
       }));
       const candidates = new Set<string>();
       const contexts = new Map<string, string>();
-      for (const { href, context } of [...links, ...structuredLinks, ...metadataLinks]) {
+      const ranked = [...links, ...structuredLinks, ...metadataLinks].sort((left, right) => {
+        const score = (item: { href: string; context: string }) =>
+          (/(?:product|상품|detail|item|goods|sku)/i.test(item.href) ? 4 : 0) +
+          (/(?:\d[\d,]*\s*원|₩)/.test(item.context) ? 3 : 0) +
+          (/(?:상품|product|item|goods)/i.test(item.context) ? 2 : 0);
+        return score(right) - score(left);
+      });
+      for (const { href, context } of ranked) {
         let candidate: URL;
         try { candidate = new URL(href, page.url()); } catch { continue; }
         if (candidate.protocol !== "https:" || rootHost(candidate.hostname) !== rootHost(target.hostname) ||
@@ -128,14 +135,14 @@ export async function scanDynamicPublicShop(
             [...candidate.searchParams.keys()].some((key) => /^(?:q|query|keyword|search|action|add-to-cart|redirect|return_url)$/i.test(key))) continue;
         candidates.add(candidate.href);
         if (!contexts.has(candidate.href)) contexts.set(candidate.href, context);
-        if (candidates.size === 3) break;
+        if (candidates.size === 8) break;
       }
       const listingScreenshot = "listing.png";
       await page.screenshot({ path: join(directory, listingScreenshot), fullPage: false, scale: "css" });
       const listingCapturedAt = new Date().toISOString();
       let found = false;
       for (const candidate of candidates) {
-        const next = await page.goto(candidate, { waitUntil: "domcontentloaded", timeout: 20_000 }).catch(() => null);
+        const next = await page.goto(candidate, { waitUntil: "domcontentloaded", timeout: 5_000 }).catch(() => null);
         if (next?.ok() && await isProductPage(page, page.url())) {
           const text = contexts.get(candidate) ?? "";
           const observedAmounts = [...text.matchAll(/(?:₩\s*)?(\d[\d,]*)\s*원/g)]
