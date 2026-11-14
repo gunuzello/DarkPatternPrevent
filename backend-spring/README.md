@@ -19,3 +19,5 @@ Gradle 8 이상과 Java 21 이상에서 `gradle bootRun`으로 실행한다. 운
 저장소 루트의 `docker-compose.spring.yml`로 PostgreSQL과 백엔드를 함께 실행할 수 있다. `BAROMI_POSTGRES_PASSWORD`와 `BAROMI_WORKER_TOKEN`은 셸 환경변수로만 주입하며 저장소에 기록하지 않는다.
 
 프론트를 별도 origin으로 운영할 때는 `BAROMI_WEB_ORIGINS`에 쉼표로 구분한 HTTPS origin을 주입한다. 비어 있으면 CORS를 열지 않는다.
+
+로컬 설정은 `.env.example`을 참고해 셸 환경변수로 주입한다. 실제 비밀번호·워커 토큰은 파일이나 Git에 기록하지 않는다.
