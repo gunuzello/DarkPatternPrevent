@@ -65,6 +65,20 @@ export async function scanDynamicPublicShop(
     const response = await page.goto(target.href, { waitUntil: "domcontentloaded", timeout: 20_000 });
     if (!response?.ok()) throw new Error("쇼핑몰 첫 화면을 불러오지 못했습니다.");
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+    if (credentials) {
+      // Many storefronts keep the login form inside a modal that is opened
+      // only after the header action is clicked. Open one unambiguous login
+      // control before looking for the credential fields; do not click
+      // marketing/consent controls or guess among multiple candidates.
+      if (!await page.locator('input[type="password"]:visible').count()) {
+        const loginControl = page.getByRole("button", { name: /로그인|sign\s*in|log\s*in/i })
+          .or(page.getByRole("link", { name: /로그인|sign\s*in|log\s*in/i }));
+        if (await loginControl.count() === 1) {
+          await loginControl.click();
+          await page.waitForTimeout(250);
+        }
+      }
+    }
     if (credentials && await page.locator('input[type="password"]:visible').count()) {
       const password = page.locator('input[type="password"]:visible').first();
       const userField = page.locator('input[type="email"], input[name*="id" i], input[name*="user" i], input[name*="login" i], input[autocomplete="username"]').filter({ visible: true }).first();
