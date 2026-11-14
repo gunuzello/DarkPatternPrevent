@@ -1,0 +1,2 @@
+ALTER TABLE "Shop" RENAME TO shop;
+ALTER TABLE "Scan" RENAME TO scan;

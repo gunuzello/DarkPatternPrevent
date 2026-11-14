@@ -7,7 +7,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "Shop")
+@Table(name = "shop")
 public class ShopEntity {
     @Id
     private String id;

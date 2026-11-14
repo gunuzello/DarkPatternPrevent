@@ -1,7 +1,7 @@
 package com.baromi.backend.scan;
 import jakarta.persistence.*;
 import java.time.Instant;
-@Entity @Table(name="Scan")
+@Entity @Table(name="scan")
 public class ScanEntity {
  @Id private String id;
  @Column(name="shop_id") private String shopId;
