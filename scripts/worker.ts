@@ -2,6 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { db } from "../src/db";
 import { runScanJob } from "../src/scan-job";
 import { notifySpringScanStatus } from "../src/spring-status";
+import { claimSpringScan } from "../src/spring-queue";
 
 async function main() {
   const store = db();
@@ -11,6 +12,16 @@ async function main() {
 
   try {
     while (!stopping) {
+      const springJob = await claimSpringScan().catch((error) => { console.warn(error instanceof Error ? error.message : error); return null; });
+      if (springJob) {
+        const started = await store.scan.updateMany({ where: { id: springJob.scanId, status: "QUEUED" }, data: { status: "RUNNING", startedAt: new Date(), durationMs: null } });
+        if (started.count) {
+          await runScanJob(springJob.scanId, springJob.targetUrl ?? "").catch((error) => console.error(springJob.scanId, error));
+        } else {
+          await notifySpringScanStatus(springJob.scanId, "failed");
+        }
+        continue;
+      }
       // Reconcile jobs from an interrupted worker once their execution limit has passed.
       await store.$executeRaw`
         UPDATE "Scan" SET status = CASE WHEN "cancelRequested" THEN 'CANCELLED' ELSE 'FAILED' END
