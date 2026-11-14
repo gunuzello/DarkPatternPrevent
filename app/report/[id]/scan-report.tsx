@@ -72,6 +72,14 @@ export function ScanReport({ id }: { id: string }) {
       {report.executionMode === "STATIC" && <p>공개 상품 화면(서버 HTML 또는 안전한 같은 출처 렌더링)을 검사했습니다. 장바구니·주문서의 추가 비용과 구매 행동 후 표시되는 항목은 미검사입니다.</p>}
       {report.executionMode === "DYNAMIC" && <p>확인된 쇼핑몰에서 별도 세션으로 동적 구매 흐름을 검사했습니다. 실제 주문 확정과 결제는 실행하지 않았습니다.</p>}
       {report.collectionFailure && <p role="status">수집 안내{report.collectionFailureCode ? ` (${failureLabels[report.collectionFailureCode] ?? report.collectionFailureCode})` : ""}: {report.collectionFailure}</p>}
+      {report.executionMode === "DYNAMIC" && report.scanStatus === "PARTIAL" && <section aria-label="동적 검사 대안">
+        <h2>검사를 이어가는 방법</h2>
+        <ul>
+          <li>로그인 정보가 필요한 경우 운영자가 만든 전용 테스트 계정을 입력해 다시 검사할 수 있습니다.</li>
+          <li>OTP·CAPTCHA가 나타나면 자동 우회하지 않고 운영자가 직접 인증을 완료한 뒤 수동 세션 연결 방식으로 재개할 수 있습니다.</li>
+          <li>인증을 연결하지 않아도 공개 화면 진단 결과와 로그인 이후 미검사 범위는 계속 확인할 수 있습니다.</li>
+        </ul>
+      </section>}
       <ul>{stages.map((stage) => <li key={stage}>{stageLabels[stage]} · {report.coverage[stage] === "COVERED" ? (report.executionMode === "STATIC" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : report.coverage[stage] === "SKIPPED" ? "선택 경로에 없음" : "미검사"}</li>)}</ul>
       {report.explorationBlocker && <p role="status">탐색 중단: {stageLabels[report.explorationBlocker.stage]}에서 {report.explorationBlocker.action === "ADD_TO_CART" ? "장바구니 담기" : report.explorationBlocker.action === "DIRECT_BUY" ? "바로구매" : "주문서 이동"} 동작을 {report.explorationBlocker.code === "LOGIN_REQUIRED" ? "로그인 화면으로 판단했습니다. 승인된 테스트 계정 또는 로그인 세션이 필요합니다." : report.explorationBlocker.code === "ACTION_AMBIGUOUS" ? `하나로 확정하지 못했습니다(후보 ${report.explorationBlocker.candidateCount}개).` : report.explorationBlocker.code === "ACTION_FAILED" ? "실행했지만 화면 전환을 확인하지 못했습니다." : "찾지 못했습니다."}</p>}
       <h2>발견된 항목</h2>
