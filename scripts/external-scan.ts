@@ -17,6 +17,8 @@ const publicTarget = target;
 const credentials = { username: username!, password: password! };
 const requestedRepeats = Number(process.env.BAROMI_SMOKE_REPEAT ?? "1");
 const repeatCount = Number.isFinite(requestedRepeats) ? Math.min(Math.max(Math.floor(requestedRepeats), 1), 3) : 1;
+const requestedHardTimeout = Number(process.env.BAROMI_SMOKE_HARD_TIMEOUT_MS ?? "360000");
+const hardTimeoutMs = Number.isFinite(requestedHardTimeout) ? Math.min(Math.max(Math.floor(requestedHardTimeout), 30_000), 900_000) : 360_000;
 
 type ScanSummary = { scanStatus: string; reached: string | null; collectionFailure: string | null; collectionFailureCode: string | null; findings: string[] };
 async function summarize(reportPath: string): Promise<ScanSummary> {
@@ -33,6 +35,10 @@ async function summarize(reportPath: string): Promise<ScanSummary> {
 }
 
 async function main() {
+  const hardTimeout = setTimeout(() => {
+    console.error(`외부 진단이 ${hardTimeoutMs}ms 제한을 초과해 중단되었습니다.`);
+    process.exit(2);
+  }, hardTimeoutMs);
   const store = db(); const shopId = randomUUID(); const scanIds: string[] = [];
   const ownerHash = createHash("sha256").update(`external-smoke:${shopId}`).digest("hex");
   try {
@@ -50,6 +56,7 @@ async function main() {
     const matchingRuns = reports.filter((report) => JSON.stringify(report) === baseline).length;
     console.log(JSON.stringify({ ok: true, scanIds, repeatCount, matchingRuns, repeatability: matchingRuns / reports.length, reports }));
   } finally {
+    clearTimeout(hardTimeout);
     await store.scan.deleteMany({ where: { shopId } }).catch(() => undefined);
     await store.shop.deleteMany({ where: { id: shopId } }).catch(() => undefined);
     await store.$disconnect();
