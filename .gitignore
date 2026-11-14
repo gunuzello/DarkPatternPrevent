@@ -1,5 +1,7 @@
 node_modules/
 .next/
+backend-spring/.gradle/
+backend-spring/build/
 next-env.d.ts
 *.tsbuildinfo
 .env*
