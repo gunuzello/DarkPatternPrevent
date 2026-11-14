@@ -12,6 +12,7 @@
     "db:setup": "prisma migrate deploy",
     "scan": "tsx scripts/scan.ts",
     "smoke:external-login": "tsx scripts/external-login-smoke.ts",
+    "scan:external": "tsx scripts/external-scan.ts",
     "test": "playwright test",
     "postinstall": "prisma generate",
     "worker": "tsx scripts/worker.ts",
