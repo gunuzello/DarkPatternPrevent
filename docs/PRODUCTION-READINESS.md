@@ -17,7 +17,7 @@
 - [x] 보관 기간 정리 작업과 헬스체크
 - [x] 요청 본문·API 남용 제한·보안 응답 헤더
 - [x] 수집 실패 유형 코드화(`FETCH_FAILED`, `PRODUCT_NOT_FOUND`, `DYNAMIC_RENDER_FAILED`, `DYNAMIC_JOURNEY_FAILED`)
-- [x] 합성 평가 40건 및 문구 변형 12건 반복 평가
+- [x] 합성 평가 40건 및 문구 변형·정상 대조군 16건 반복 평가
 
 ## 실제 배포 전에 필요한 외부 검증
 

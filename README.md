@@ -72,4 +72,4 @@ npm run evaluate -- --text-validation
 # 설치된 Chrome으로 실행하려면 PLAYWRIGHT_CHANNEL=chrome npm run evaluate
 ```
 
-로컬 합성 쇼핑몰 40건을 Playwright로 탐색합니다. 결과는 `scan-results/evaluation/summary.json`에 기록되며, 추가 문구 사례 12건의 결과는 `scan-results/text-validation/summary.json`에 기록됩니다. 각 사례 폴더에는 스크린샷과 진단 JSON이 저장됩니다. [측정 결과와 한계](docs/EVALUATION.md)를 참고하세요.
+로컬 합성 쇼핑몰 40건을 Playwright로 탐색합니다. 결과는 `scan-results/evaluation/summary.json`에 기록되며, 추가 문구 변형·정상 대조군 16건의 결과는 `scan-results/text-validation/summary.json`에 기록됩니다. 각 사례 폴더에는 스크린샷과 진단 JSON이 저장됩니다. [측정 결과와 한계](docs/EVALUATION.md)를 참고하세요.
