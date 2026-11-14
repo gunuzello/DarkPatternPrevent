@@ -108,7 +108,7 @@ export async function runScanJob(id: string, targetUrl: string) {
         },
       });
       await store.scan.update({ where: { id }, data: { credentialCiphertext: null } });
-      await notifySpringScanStatus(id, report.scanStatus === "COMPLETED" ? "succeeded" : "partial");
+      await notifySpringScanStatus(id, report.scanStatus === "COMPLETED" ? "succeeded" : "partial", undefined, JSON.stringify(report));
       return finished.reportPath;
     } finally {
       clearTimeout(timeout);

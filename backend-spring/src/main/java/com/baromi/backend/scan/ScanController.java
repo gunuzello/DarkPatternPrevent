@@ -26,7 +26,12 @@ public class ScanController {
   if (existing.isPresent()) {
    var scan = existing.get();
    if (!canTransition(scan.getStatus(), request.status())) return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error","허용되지 않는 진단 상태 전이입니다.","status",scan.getStatus()));
-   scan.setStatus(request.status()); scan.setCurrentStage(request.stage()); scans.save(scan);
+   scan.setStatus(request.status()); scan.setCurrentStage(request.stage());
+   if (request.reportJson() != null && request.reportJson().length() <= 4_000_000) {
+    var days = Math.min(Math.max(retentionDays(), 1), 3650);
+    scan.setReportJson(request.reportJson(), Instant.now().plusSeconds(days * 86_400L));
+   }
+   scans.save(scan);
    return ResponseEntity.ok(statusBody(scan));
   }
   var imported = scans.save(new ScanEntity(id, null, request.status(), Instant.now())); imported.setCurrentStage(request.stage()); imported = scans.save(imported);
@@ -50,6 +55,11 @@ public class ScanController {
  @GetMapping("/{id}") public ResponseEntity<?> get(@RequestHeader("X-Baromi-Owner") String owner,@PathVariable String id){
   return scans.findById(id).filter(s->s.getShopId()!=null && shops.findByIdAndOwnerHash(s.getShopId(),ShopController.ownerHashForApi(owner)).isPresent()).<ResponseEntity<?>>map(s->{ var body=statusBody(s); body.put("shopId",s.getShopId()); return ResponseEntity.ok(body); }).orElseGet(()->ResponseEntity.notFound().build());
  }
+ @GetMapping("/{id}/report") public ResponseEntity<?> report(@RequestHeader("X-Baromi-Owner") String owner,@PathVariable String id){
+  return scans.findById(id).filter(s->s.getShopId()!=null && shops.findByIdAndOwnerHash(s.getShopId(),ShopController.ownerHashForApi(owner)).isPresent())
+   .map(s -> s.getReportJson() == null ? ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error","진단 보고서가 아직 저장되지 않았습니다.")) : ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(s.getReportJson()))
+   .orElseGet(() -> ResponseEntity.notFound().build());
+ }
  @GetMapping("/shop/{shopId}") public ResponseEntity<?> listForShop(@RequestHeader("X-Baromi-Owner") String owner,@PathVariable String shopId,@RequestParam(defaultValue="50") int limit){
   if(owner.isBlank() || shops.findByIdAndOwnerHash(shopId,ShopController.ownerHashForApi(owner)).isEmpty()) return ResponseEntity.notFound().build();
   var safeLimit = Math.min(Math.max(limit, 1), 100);
@@ -57,7 +67,7 @@ public class ScanController {
   return ResponseEntity.ok(Map.of("shopId", shopId, "limit", safeLimit, "scans", items));
  }
  public record CreateScanRequest(String id, String shopId, String targetUrl, String executionMode, String viewport, String purchasePath) {}
-  public record StatusRequest(String status, String stage) {}
+ public record StatusRequest(String status, String stage, String reportJson) {}
  public record RecoverRequest(Instant staleBefore) {}
  private static LinkedHashMap<String,Object> statusBody(ScanEntity scan){ var body=new LinkedHashMap<String,Object>(); body.put("scanId",scan.getId()); body.put("status",scan.getStatus()); body.put("currentStage",scan.getCurrentStage()); body.put("createdAt",scan.getCreatedAt()); body.put("updatedAt",scan.getUpdatedAt()); body.put("startedAt",scan.getStartedAt()); return body; }
  private static boolean isAllowed(String status){return switch(status){case "queued","running","partial","succeeded","failed","cancelled" -> true; default -> false;};}
@@ -72,6 +82,10 @@ public class ScanController {
   };
  }
  private static boolean isAllowedExecution(String mode){return mode==null || mode.equals("STATIC") || mode.equals("DYNAMIC");}
+ private int retentionDays(){
+  try { return Integer.parseInt(System.getenv().getOrDefault("BAROMI_REPORT_RETENTION_DAYS", "30")); }
+  catch (NumberFormatException ignored) { return 30; }
+ }
  private static boolean sameHttpsOrigin(String registered,String target){
   if(target==null || target.isBlank()) return false;
   try { var base=URI.create(registered); var requested=URI.create(target); return "https".equalsIgnoreCase(requested.getScheme()) && requested.getHost()!=null && requested.getPort()==-1 && requested.getHost().equalsIgnoreCase(base.getHost()); }
