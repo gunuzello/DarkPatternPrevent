@@ -11,6 +11,7 @@ import { detect, type InteractionEvidence, type Snapshot } from "./rules";
 import { feeMentionsFromText } from "./price-text";
 import { collectReviewCandidates } from "./review-candidates";
 import { structuredProductLinks } from "./structured-product-links";
+import type { TestCredentials } from "./credential-vault";
 
 const rootHost = (hostname: string) => hostname.replace(/^www\./, "");
 
@@ -33,6 +34,7 @@ export async function scanDynamicPublicShop(
   viewport: "DESKTOP" | "MOBILE",
   onStage: (snapshot: Snapshot) => Promise<void>,
   purchasePath: "CART" | "DIRECT" = "CART",
+  credentials?: TestCredentials,
 ) {
   const target = new URL(targetUrl);
   await mkdir(directory, { recursive: true });
@@ -63,6 +65,21 @@ export async function scanDynamicPublicShop(
     const response = await page.goto(target.href, { waitUntil: "domcontentloaded", timeout: 20_000 });
     if (!response?.ok()) throw new Error("쇼핑몰 첫 화면을 불러오지 못했습니다.");
     await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+    if (credentials && await page.locator('input[type="password"]:visible').count()) {
+      const password = page.locator('input[type="password"]:visible').first();
+      const userField = page.locator('input[type="email"], input[name*="id" i], input[name*="user" i], input[name*="login" i], input[autocomplete="username"]').filter({ visible: true }).first();
+      if (!await userField.count()) throw new Error("로그인 아이디 입력란을 찾지 못했습니다.");
+      await userField.fill(credentials.username);
+      await password.fill(credentials.password);
+      const submit = page.getByRole("button", { name: /로그인|sign\s*in|log\s*in/i }).or(page.locator('input[type="submit"]'));
+      if (await submit.count() !== 1) throw new Error("로그인 버튼을 하나로 확정하지 못했습니다.");
+      await Promise.all([
+        page.waitForLoadState("domcontentloaded", { timeout: 10_000 }).catch(() => {}),
+        submit.click(),
+      ]);
+      await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
+      if (await page.locator('input[type="password"]:visible').count()) throw new Error("로그인에 실패했거나 추가 인증이 필요합니다.");
+    }
 
     let firstPriceExposure: FirstPriceExposure | undefined;
     if (!await isProductPage(page, page.url())) {

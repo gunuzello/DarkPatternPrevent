@@ -10,6 +10,7 @@ import { scanDynamicPublicShop } from "./dynamic-public-scan";
 import { startSafeBrowserProxy } from "./safe-browser-proxy";
 import { buildPriceLedger } from "./price-ledger";
 import { scanComparisonVersion } from "./scan-comparison";
+import { decryptCredentials, type TestCredentials } from "./credential-vault";
 
 export async function runScanJob(id: string, targetUrl: string) {
   const store = db();
@@ -18,11 +19,19 @@ export async function runScanJob(id: string, targetUrl: string) {
     const target = scanTarget(targetUrl);
     if (!target) throw new Error("허용 목록에 없는 진단 대상입니다.");
     const requested = await store.scan.findUnique({
-      where: { id }, select: { executionMode: true, viewport: true, purchasePath: true, shop: { select: { verifiedAt: true } } },
+      where: { id }, select: { executionMode: true, viewport: true, purchasePath: true, credentialCiphertext: true, shop: { select: { verifiedAt: true } } },
     });
     if (!requested) throw new Error("진단 작업을 찾을 수 없습니다.");
-    if (requested.executionMode === "DYNAMIC" && (target.scenario !== "public" || !requested.shop?.verifiedAt)) {
+    if (requested.executionMode === "DYNAMIC" && (target.scenario !== "public" || (!requested.shop?.verifiedAt && !requested.credentialCiphertext))) {
       throw new Error("사이트 확인이 없는 동적 진단은 실행할 수 없습니다.");
+    }
+    let credentials: TestCredentials | undefined;
+    if (requested.credentialCiphertext) {
+      try { credentials = decryptCredentials(requested.credentialCiphertext); }
+      catch (error) {
+        await store.scan.update({ where: { id }, data: { credentialCiphertext: null } }).catch(() => undefined);
+        throw error;
+      }
     }
     const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL, timeout: 20_000 });
     const proxy = requested.executionMode === "DYNAMIC"
@@ -42,7 +51,7 @@ export async function runScanJob(id: string, targetUrl: string) {
       try {
         report = target.scenario === "public"
           ? requested.executionMode === "DYNAMIC" && proxy
-            ? await scanDynamicPublicShop(browser, target.url, directory, proxy.server, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", onStage, requested.purchasePath === "DIRECT" ? "DIRECT" : "CART")
+            ? await scanDynamicPublicShop(browser, target.url, directory, proxy.server, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", onStage, requested.purchasePath === "DIRECT" ? "DIRECT" : "CART", credentials)
             : await scanPublicShop(browser, target.url, directory, onStage, undefined, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", requested.purchasePath === "DIRECT" ? "DIRECT" : "CART")
           : await scanDemo(browser, new URL(target.url).origin, target.scenario, directory, onStage, requested.viewport === "MOBILE" ? "MOBILE" : "DESKTOP", requested.purchasePath === "DIRECT" ? "DIRECT" : "CART");
       } catch (error) {
@@ -70,11 +79,13 @@ export async function runScanJob(id: string, targetUrl: string) {
           })) },
         },
       });
+      await store.scan.update({ where: { id }, data: { credentialCiphertext: null } });
       return finished.reportPath;
     } finally {
       clearTimeout(timeout);
       await proxy?.close().catch(() => {});
       await browser.close();
+      await store.scan.update({ where: { id }, data: { credentialCiphertext: null } }).catch(() => undefined);
     }
   } catch (error) {
     const cancelled = await store.scan.updateMany({

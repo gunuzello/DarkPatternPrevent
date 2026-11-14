@@ -12,6 +12,8 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
   const [viewport, setViewport] = useState<"DESKTOP" | "MOBILE">("DESKTOP");
   const [purchasePath, setPurchasePath] = useState<"CART" | "DIRECT">("CART");
   const [dynamic, setDynamic] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [verification, setVerification] = useState<{ shopId: string; metaTag: string; filePath: string; dnsRecord: string } | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -21,6 +23,11 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
     try {
       const shop = await post("shops", { url: url.trim(), consent: new FormData(event.currentTarget).get("consent") === "on" });
       if (dynamic) {
+        if (username && password) {
+          const scan = await post("scans", scanRequest(shop.shopId, undefined, "DYNAMIC", viewport, purchasePath, { username, password }));
+          router.push("/scan/" + scan.scanId);
+          return;
+        }
         if (!shop.verification) throw new Error("이 주소는 동적 검사 확인 정보를 발급할 수 없습니다.");
         setVerification({ shopId: shop.shopId, ...shop.verification });
         setPending(false);
@@ -40,7 +47,8 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
     setError("");
     try {
       await post(`shops/${verification.shopId}/verify`, {});
-      const scan = await post("scans", scanRequest(verification.shopId, undefined, "DYNAMIC", viewport, purchasePath));
+      const scan = await post("scans", scanRequest(verification.shopId, undefined, "DYNAMIC", viewport, purchasePath,
+        username && password ? { username, password } : undefined));
       router.push("/scan/" + scan.scanId);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "소유 확인에 실패했습니다.");
@@ -71,6 +79,12 @@ export function ScanForm({ clean, risky }: { clean: string; risky: string }) {
       <button type="button" className="action secondary" aria-pressed={dynamic} onClick={() => setDynamic((value) => !value)}>
         {dynamic ? "동적 구매 흐름 검사 선택됨" : "소유 확인 후 동적 구매 흐름까지 검사"}
       </button>
+      {dynamic && <fieldset>
+        <legend>테스트 계정(선택)</legend>
+        <p>로그인·회원가 검사가 필요하면 운영자가 만든 테스트 계정을 입력하세요. 비밀번호는 진단 작업에만 사용하고 작업 후 삭제합니다.</p>
+        <label className="field">아이디<input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} /></label>
+        <label className="field">비밀번호<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+      </fieldset>}
       <label><input type="checkbox" name="consent" required /> 이 대상에 대한 자동 진단 권한이 있으며 검사에 동의합니다.</label>
       <button type="submit" className="action" disabled={pending}>{pending ? "요청 중…" : "진단 시작"}</button>
       {error && <p role="alert">{error}</p>}

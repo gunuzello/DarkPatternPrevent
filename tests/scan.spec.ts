@@ -3,6 +3,14 @@ import { once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
+import { decryptCredentials, encryptCredentials } from "../src/credential-vault";
+
+test("테스트 계정은 암호화된 일회성 값으로만 보관한다", () => {
+  process.env.BAROMI_CREDENTIAL_KEY = Buffer.alloc(32, 7).toString("base64");
+  const ciphertext = encryptCredentials({ username: "test-user", password: "secret-password" });
+  expect(ciphertext).not.toContain("secret-password");
+  expect(decryptCredentials(ciphertext)).toEqual({ username: "test-user", password: "secret-password" });
+});
 import { scanDemo } from "../src/scan";
 import { paidOptionFromText } from "../src/price-text";
 

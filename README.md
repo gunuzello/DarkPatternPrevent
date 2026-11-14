@@ -14,6 +14,8 @@ npm run db:setup
 npm run dev
 ```
 
+테스트 계정으로 동적 진단을 사용하려면 `.env`의 `BAROMI_CREDENTIAL_KEY`를 별도로 생성하세요(`openssl rand -base64 32`). 전용 테스트 계정만 사용하며, 암호화된 작업 값은 진단 종료 후 삭제됩니다.
+
 웹 진단을 처리하려면 다른 터미널에서 작업기도 실행합니다.
 
 ```sh

@@ -13,6 +13,7 @@ export function scanRequest(
   shopId: string, baselineScanId?: string, profile: "CONTEST" | "DYNAMIC" = "CONTEST",
   viewport: "DESKTOP" | "MOBILE" = "DESKTOP",
   purchasePath: "CART" | "DIRECT" = "CART",
+  credentials?: { username: string; password: string },
 ) {
-  return { shopId, baselineScanId, profile, flows: ["PURCHASE"], productLimit: 1, viewport, purchasePath };
+  return { shopId, baselineScanId, profile, flows: ["PURCHASE"], productLimit: 1, viewport, purchasePath, ...(credentials ? { credentials } : {}) };
 }

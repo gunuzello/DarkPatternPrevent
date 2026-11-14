@@ -13,6 +13,7 @@ import { compareScans } from "../../../../src/scan-comparison";
 import type { scanDemo } from "../../../../src/scan";
 import { fetchPublicHtml } from "../../../../src/public-html";
 import { createSiteVerification, hashToken, matchesVerification, verificationDnsPrefix, verificationFile, verificationName } from "../../../../src/site-verification";
+import { encryptCredentials } from "../../../../src/credential-vault";
 
 type Context = { params: Promise<{ path: string[] }> };
 type Report = Omit<Awaited<ReturnType<typeof scanDemo>>, "scenario"> & { scenario: string };
@@ -121,13 +122,23 @@ export async function POST(request: NextRequest, context: Context) {
     if (body.purchasePath !== undefined && !["CART", "DIRECT"].includes(body.purchasePath)) {
       return error("구매 경로는 CART 또는 DIRECT여야 합니다.", 400);
     }
+    const credentials = body.credentials;
+    if (credentials !== undefined && (body.profile !== "DYNAMIC" || typeof credentials !== "object" ||
+        typeof credentials.username !== "string" || typeof credentials.password !== "string")) {
+      return error("테스트 계정은 동적 진단에서만 username/password 형식으로 제공해야 합니다.", 400);
+    }
+    let credentialCiphertext: string | undefined;
+    if (body.profile === "DYNAMIC" && credentials) {
+      try { credentialCiphertext = encryptCredentials(credentials); }
+      catch (cause) { return error(cause instanceof Error ? cause.message : "테스트 계정을 보호할 수 없습니다.", 503); }
+    }
     const purchasePath = body.purchasePath === "DIRECT" ? "DIRECT" : "CART";
     if (!["CONTEST", "DYNAMIC"].includes(body.profile) || !["DESKTOP", "MOBILE"].includes(body.viewport) ||
         !Array.isArray(body.flows) || body.flows.length !== 1 || body.flows[0] !== "PURCHASE" ||
         body.productLimit !== 1) {
       return error("PC 또는 모바일 구매 흐름에서 상품 1개를 진단할 수 있습니다.", 400);
     }
-    if (body.profile === "DYNAMIC" && (target.scenario !== "public" || !shop.verifiedAt)) {
+    if (body.profile === "DYNAMIC" && (target.scenario !== "public" || (!shop.verifiedAt && !body.credentials))) {
       return error("사이트 확인을 마친 외부 쇼핑몰만 동적 진단할 수 있습니다.", 409);
     }
     const baselineScanId = body.baselineScanId;
@@ -160,6 +171,7 @@ export async function POST(request: NextRequest, context: Context) {
         id: randomUUID(), shopId: shop.id, targetUrl: target.url, scenario: target.scenario,
         executionMode: body.profile === "DYNAMIC" ? "DYNAMIC" : "STATIC", viewport: body.viewport,
         purchasePath,
+        credentialCiphertext,
         baselineScanId, status: "QUEUED",
       },
     });
@@ -174,7 +186,7 @@ export async function POST(request: NextRequest, context: Context) {
     });
     if (running.count) return Response.json({ status: "RUNNING", cancelRequested: true }, { status: 202 });
     const queued = await db().scan.updateMany({
-      where: { ...where, status: "QUEUED" }, data: { status: "CANCELLED" },
+      where: { ...where, status: "QUEUED" }, data: { status: "CANCELLED", credentialCiphertext: null },
     });
     if (queued.count) return Response.json({ status: "CANCELLED" });
     const scan = await db().scan.findFirst({ where, select: { status: true } });
