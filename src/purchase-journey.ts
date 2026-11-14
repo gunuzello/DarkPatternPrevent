@@ -111,7 +111,9 @@ async function dismissBlockingDialog(page: Page) {
   const dialogs = page.locator('[role="dialog"]:visible, [aria-modal="true"]:visible, div.fixed.inset-0:visible');
   for (let index = 0; index < Math.min(await dialogs.count(), 3); index++) {
     const dialog = dialogs.nth(index);
-    const close = dialog.getByRole("button", { name: /닫기|close|취소|나중에|아니요|×|dismiss/i }).filter({ visible: true });
+    const close = dialog.locator('button:visible, [role="button"]:visible, a:visible')
+      .filter({ hasText: /닫기|close|취소|나중에|다음에|건너뛰기|skip|dismiss|×|\bX\b/i })
+      .or(dialog.locator('button[aria-label*="닫" i]:visible, button[aria-label*="close" i]:visible, button[title*="닫" i]:visible, button[title*="close" i]:visible, button:has(svg.lucide-x):visible'));
     if (await close.count() !== 1) continue;
     await close.click({ timeout: 3_000 }).catch(() => undefined);
     await page.waitForTimeout(150);
