@@ -1,4 +1,5 @@
 const endpoint = () => process.env.BAROMI_SPRING_API_URL?.replace(/\/$/, "");
+export const springAuthoritative = () => process.env.BAROMI_SPRING_AUTHORITATIVE === "true" && Boolean(endpoint());
 const springTimeoutMs = () => {
   const configured = Number(process.env.BAROMI_SPRING_TIMEOUT_MS ?? 800);
   return Number.isFinite(configured) ? Math.min(Math.max(configured, 200), 5_000) : 800;
@@ -52,6 +53,24 @@ export async function notifySpringScanStatus(scanId: string, status: "queued" | 
     if (!response.ok) console.warn(`Spring scan status callback failed: ${response.status}`);
   } catch (error) {
     console.warn("Spring scan status callback unavailable", error instanceof Error ? error.message : error);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Read-through access used only after Spring/PostgreSQL has passed cutover checks. */
+export async function readSpringScan(scanId: string, owner: string, report = false) {
+  const base = endpoint();
+  if (!base || !owner || !springAuthoritative()) return null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), springTimeoutMs());
+  try {
+    const response = await fetch(`${base}/api/v1/scans/${encodeURIComponent(scanId)}${report ? "/report" : ""}`, {
+      headers: { "x-baromi-owner": owner }, signal: controller.signal,
+    });
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`Spring scan read failed: ${response.status}`);
+    return await response.json() as Record<string, unknown>;
   } finally {
     clearTimeout(timeout);
   }

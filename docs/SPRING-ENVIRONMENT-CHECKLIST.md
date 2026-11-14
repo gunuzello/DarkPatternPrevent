@@ -15,6 +15,7 @@
 - Spring은 상점·진단 상태를 병행 기록한다.
 - Spring 연동 장애가 기존 진단을 중단시키지 않도록 상태 콜백은 best-effort다.
 - `BAROMI_SPRING_QUEUE_ENABLED` 기본값은 `false`이며, Spring `POST /api/v1/scans/claim` 검증이 끝난 워커에서만 `true`로 전환한다.
+- `BAROMI_SPRING_AUTHORITATIVE`는 PostgreSQL 상태·보고서 read-through 검증이 끝난 뒤에만 `true`로 전환한다. 기본값은 `false`다.
 - Spring 큐 모드에서는 Next/SQLite에 동일한 진단 레코드가 먼저 존재해야 하며, 큐 단일화 전까지는 전환기 안전장치로 유지한다.
 - `X-Baromi-Owner`는 전환기 내부 계약이며 최종 공개 인증으로 사용하지 않는다.
 

@@ -84,10 +84,11 @@ Spring Boot·PostgreSQL 환경을 함께 띄우려면 `docker compose -f docker-
 BAROMI_SPRING_API_URL="http://127.0.0.1:8080" \
 BAROMI_WORKER_TOKEN="운영-워커-토큰" \
 BAROMI_SPRING_QUEUE_ENABLED=true \
+BAROMI_SPRING_AUTHORITATIVE=true \
 npm run worker
 ```
 
-Spring 큐는 `POST /api/v1/scans/claim`으로 작업을 원자적으로 가져오고, `POST /api/v1/scans/recover`로 기준 시각 이전의 오래된 작업을 복구합니다. 전환기에는 동일한 진단 ID가 SQLite에도 있어야 하며, 운영 전환 전 PostgreSQL·워커 재시작·중복 claim 검증을 완료해야 합니다. 상세 조건은 [Spring 환경 체크리스트](docs/SPRING-ENVIRONMENT-CHECKLIST.md)를 참고하세요.
+Spring 큐는 `POST /api/v1/scans/claim`으로 작업을 원자적으로 가져오고, `POST /api/v1/scans/recover`로 기준 시각 이전의 오래된 작업을 복구합니다. `BAROMI_SPRING_AUTHORITATIVE=true`를 켜면 상태·보고서 GET이 Spring/PostgreSQL read-through를 사용합니다. 운영 전환 전 PostgreSQL·워커 재시작·중복 claim·read-through 검증을 완료해야 합니다. 상세 조건은 [Spring 환경 체크리스트](docs/SPRING-ENVIRONMENT-CHECKLIST.md)를 참고하세요.
 
 외부 진단은 플랫폼 제한 없이 공개 HTTPS 주소를 받습니다. 사이트 소유 확인 전에는 초기 HTML만 검사하고 장바구니·주문서를 미검사로 표시합니다. 서버가 발급한 메타 태그로 소유 확인을 마치면 별도 브라우저 세션에서 동적 구매 흐름을 탐색할 수 있습니다. 공개 주소로 검증된 대상에만 연결하며 주문 확정과 결제는 실행하지 않습니다. 실제 탐색 성능은 권한을 받은 테스트몰에서 별도로 검증해야 합니다.
 

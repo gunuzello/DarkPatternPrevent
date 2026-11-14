@@ -14,7 +14,7 @@ import type { scanDemo } from "../../../../src/scan";
 import { fetchPublicHtml } from "../../../../src/public-html";
 import { createSiteVerification, hashToken, matchesVerification, verificationDnsPrefix, verificationFile, verificationName } from "../../../../src/site-verification";
 import { encryptCredentials } from "../../../../src/credential-vault";
-import { mirrorSpringScan, mirrorSpringShop, notifySpringScanStatus } from "../../../../src/spring-status";
+import { mirrorSpringScan, mirrorSpringShop, notifySpringScanStatus, readSpringScan, springAuthoritative } from "../../../../src/spring-status";
 import { diagnosticSurfaceKinds, type DiagnosticSurfaceKind } from "../../../../src/diagnostic-surfaces";
 
 type Context = { params: Promise<{ path: string[] }> };
@@ -311,6 +311,19 @@ export async function GET(request: NextRequest, context: Context) {
     }) : notFound();
   }
   if (resource !== "scans") return notFound();
+  if (springAuthoritative() && (action === undefined || action === "report")) {
+    const spring = await readSpringScan(id, session, action === "report");
+    if (spring) {
+      if (action === "report") {
+        return Response.json({ ...spring, scanId: spring.scanId ?? id, source: "SPRING_POSTGRES" }, {
+          headers: { "Cache-Control": "private, no-store" },
+        });
+      }
+      return Response.json({ ...spring, source: "SPRING_POSTGRES", progress: spring.status === "queued" || spring.status === "running" ? 0 : 100 }, {
+        headers: { "Cache-Control": "private, no-store" },
+      });
+    }
+  }
   const scan = await db().scan.findFirst({
     where: { id, shop: { ownerHash } }, include: { findings: { orderBy: { id: "asc" } }, aiReview: true, shop: { select: { plan: true } } },
   });
