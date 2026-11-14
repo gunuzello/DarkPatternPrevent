@@ -20,7 +20,8 @@
     "backup": "tsx scripts/backup.ts",
     "restore": "tsx scripts/restore.ts",
     "predb:setup": "tsx scripts/prepare-db.ts",
-    "evaluate": "tsx scripts/evaluate.ts"
+    "evaluate": "tsx scripts/evaluate.ts",
+    "dataset:validate": "tsx scripts/validate-dataset.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "7.10.1",

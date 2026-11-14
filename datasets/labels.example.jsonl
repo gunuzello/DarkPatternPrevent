@@ -1,0 +1,2 @@
+{"shopGroupId":"example-clean-01","flowId":"flow-001","split":"development","evidenceIds":["evidence:product"],"labels":[{"type":"PRESELECTION","status":"NOT_OBSERVED","adjudication":"AGREED"}],"collectorVersion":"collector-1","ruleVersion":"3"}
+{"shopGroupId":"example-risk-01","flowId":"flow-002","split":"validation","evidenceIds":["evidence:checkout"],"labels":[{"type":"DRIP_PRICING","status":"REVIEW","adjudication":"PENDING"}],"collectorVersion":"collector-1","ruleVersion":"3"}
