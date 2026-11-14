@@ -32,6 +32,8 @@ BAROMI_SMOKE_REPEAT=2 \
 npm run scan:external
 ```
 
+모바일·바로구매 경로는 `BAROMI_SMOKE_VIEWPORT=MOBILE` 또는 `BAROMI_SMOKE_PURCHASE_PATH=DIRECT`를 추가해 같은 승인 계정으로 별도 측정한다.
+
 성공 기준은 반복 결과 일치율, 도달 단계, 미검사 원인, 증거 ID가 보고서에 남는 것이다. 실행 후 외부 스캔 스크립트는 테스트 보고서와 자격증명 관련 임시 데이터를 삭제한다.
 
 ## 비용 계측

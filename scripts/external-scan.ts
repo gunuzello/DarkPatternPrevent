@@ -19,6 +19,8 @@ const requestedRepeats = Number(process.env.BAROMI_SMOKE_REPEAT ?? "1");
 const repeatCount = Number.isFinite(requestedRepeats) ? Math.min(Math.max(Math.floor(requestedRepeats), 1), 3) : 1;
 const requestedHardTimeout = Number(process.env.BAROMI_SMOKE_HARD_TIMEOUT_MS ?? "360000");
 const hardTimeoutMs = Number.isFinite(requestedHardTimeout) ? Math.min(Math.max(Math.floor(requestedHardTimeout), 30_000), 900_000) : 360_000;
+const viewport = process.env.BAROMI_SMOKE_VIEWPORT === "MOBILE" ? "MOBILE" : "DESKTOP";
+const purchasePath = process.env.BAROMI_SMOKE_PURCHASE_PATH === "DIRECT" ? "DIRECT" : "CART";
 
 type ScanSummary = {
   scanStatus: string; reached: string | null; collectionFailure: string | null; collectionFailureCode: string | null;
@@ -69,7 +71,7 @@ async function main() {
     const reports: ScanSummary[] = [];
     for (let attempt = 0; attempt < repeatCount; attempt++) {
       const scanId = randomUUID(); scanIds.push(scanId);
-      await store.scan.create({ data: { id: scanId, shopId, scenario: "public", executionMode: "DYNAMIC", viewport: "DESKTOP", purchasePath: "CART", targetUrl: publicTarget.url, status: "RUNNING", credentialCiphertext: encryptCredentials(credentials) } });
+      await store.scan.create({ data: { id: scanId, shopId, scenario: "public", executionMode: "DYNAMIC", viewport, purchasePath, targetUrl: publicTarget.url, status: "RUNNING", credentialCiphertext: encryptCredentials(credentials) } });
       const reportPath = await runScanJob(scanId, publicTarget.url);
       if (!reportPath) throw new Error("외부 진단 보고서 경로가 없습니다.");
       reports.push(await summarize(reportPath));
