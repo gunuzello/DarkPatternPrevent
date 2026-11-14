@@ -165,9 +165,9 @@ export async function scanDynamicPublicShop(
           const card = cards.nth(index);
           if (!await card.isVisible().catch(() => false)) continue;
           const before = page.url();
-          await card.click({ position: { x: 20, y: 20 }, timeout: 3_000 }).catch(() => undefined);
+          await card.click({ timeout: 3_000 }).catch(() => undefined);
           await page.waitForTimeout(300);
-          if (page.url() !== before && await isProductPage(page, page.url())) { found = true; break; }
+          if (await isProductPage(page, page.url())) { found = true; break; }
           if (page.url() !== before) await page.goto(listingUrl, { waitUntil: "domcontentloaded", timeout: 5_000 }).catch(() => undefined);
         }
       }
