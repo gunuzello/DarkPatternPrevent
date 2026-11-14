@@ -273,6 +273,21 @@ test("바로구매 경로는 장바구니를 거치지 않고 주문서 직전�
   expect(await page.locator("h1").innerText()).toBe("주문서");
 });
 
+test("구매 버튼이 일반 안내 화면으로 이동하면 주문서 도달로 과장하지 않는다", async ({ page }) => {
+  const { explorePurchaseJourney } = await import("../src/purchase-journey");
+  await page.route("https://redirect.example/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const html = path === "/product"
+      ? `<button onclick="location='/notice'">바로구매</button>`
+      : `<h1>구매 안내</h1><p>재고 문의 후 구매할 수 있습니다.</p>`;
+    return route.fulfill({ contentType: "text/html; charset=utf-8", body: html });
+  });
+  await page.goto("https://redirect.example/product");
+  const result = await explorePurchaseJourney(page, undefined, "DIRECT");
+  expect(result.reached).toBe("product");
+  expect(result.blocker).toMatchObject({ code: "ACTION_FAILED", action: "DIRECT_BUY" });
+});
+
 test("사이트 확인 메타 태그는 속성 순서와 따옴표가 달라도 검증하고 위조 값은 거부한다", async () => {
   const { createSiteVerification, matchesVerification, verificationName } = await import("../src/site-verification");
   const verification = createSiteVerification();
