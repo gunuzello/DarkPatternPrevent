@@ -1,5 +1,6 @@
 import { chromium } from "playwright";
 import { scanTarget } from "../src/targets";
+import { safeUrl } from "../src/safe-url";
 
 const targetUrl = process.env.BAROMI_SMOKE_URL;
 const username = process.env.BAROMI_SMOKE_USERNAME;
@@ -9,10 +10,6 @@ if (!targetUrl || !username || !password) {
   throw new Error("BAROMI_SMOKE_URL, BAROMI_SMOKE_USERNAME, BAROMI_SMOKE_PASSWORD를 설정해야 합니다.");
 }
 const config = { targetUrl, username, password };
-function safeUrl(value: string) {
-  const parsed = new URL(value);
-  return `${parsed.origin}${parsed.pathname}`;
-}
 if (!scanTarget(config.targetUrl)) {
   throw new Error("BAROMI_SMOKE_URL은 공개 HTTPS 쇼핑몰 주소여야 합니다.");
 }

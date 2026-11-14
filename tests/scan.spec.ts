@@ -346,6 +346,11 @@ test("동적 수집 실패는 추가 인증과 일반 탐색 실패를 구분한
   expect(classifyDynamicFailure("동적 구매 흐름 시간 초과(120000ms)")).toBe("DYNAMIC_JOURNEY_FAILED");
 });
 
+test("로그용 URL 정규화는 쿼리와 해시를 제거한다", async () => {
+  const { safeUrl } = await import("../src/safe-url");
+  expect(safeUrl("https://shop.example/item?session=secret#checkout")).toBe("https://shop.example/item");
+});
+
 test("가격 원장은 화면과 API 금액의 일치·불일치를 값별로 보존한다", async () => {
   const { buildPriceLedger } = await import("../src/price-ledger");
   const snapshot = {
