@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { scanTarget } from "../src/targets";
 
 const targetUrl = process.env.BAROMI_SMOKE_URL;
 const username = process.env.BAROMI_SMOKE_USERNAME;
@@ -8,6 +9,9 @@ if (!targetUrl || !username || !password) {
   throw new Error("BAROMI_SMOKE_URL, BAROMI_SMOKE_USERNAME, BAROMI_SMOKE_PASSWORD를 설정해야 합니다.");
 }
 const config = { targetUrl, username, password };
+if (!scanTarget(config.targetUrl)) {
+  throw new Error("BAROMI_SMOKE_URL은 공개 HTTPS 쇼핑몰 주소여야 합니다.");
+}
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
