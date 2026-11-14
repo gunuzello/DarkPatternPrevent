@@ -18,14 +18,16 @@ const credentials = { username: username!, password: password! };
 const requestedRepeats = Number(process.env.BAROMI_SMOKE_REPEAT ?? "1");
 const repeatCount = Number.isFinite(requestedRepeats) ? Math.min(Math.max(Math.floor(requestedRepeats), 1), 3) : 1;
 
-type ScanSummary = { scanStatus: string; reached: string | null; findings: string[] };
+type ScanSummary = { scanStatus: string; reached: string | null; collectionFailure: string | null; collectionFailureCode: string | null; findings: string[] };
 async function summarize(reportPath: string): Promise<ScanSummary> {
   const report = JSON.parse(await readFile(reportPath, "utf8")) as {
-    scanStatus?: string; snapshots?: { stage: string }[]; findings?: { type: string; stage: string; reason: string }[];
+    scanStatus?: string; snapshots?: { stage: string }[]; collectionFailure?: string | null; collectionFailureCode?: string | null; findings?: { type: string; stage: string; reason: string }[];
   };
   return {
     scanStatus: report.scanStatus ?? "UNKNOWN",
     reached: report.snapshots?.at(-1)?.stage ?? null,
+    collectionFailure: report.collectionFailure ?? null,
+    collectionFailureCode: report.collectionFailureCode ?? null,
     findings: (report.findings ?? []).map(({ type, stage, reason }) => `${type}:${stage}:${reason}`).sort(),
   };
 }
