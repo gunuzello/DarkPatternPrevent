@@ -11,6 +11,7 @@ import { startSafeBrowserProxy } from "./safe-browser-proxy";
 import { buildPriceLedger } from "./price-ledger";
 import { scanComparisonVersion } from "./scan-comparison";
 import { decryptCredentials, type TestCredentials } from "./credential-vault";
+import { notifySpringScanStatus } from "./spring-status";
 
 export async function runScanJob(id: string, targetUrl: string) {
   const store = db();
@@ -80,6 +81,7 @@ export async function runScanJob(id: string, targetUrl: string) {
         },
       });
       await store.scan.update({ where: { id }, data: { credentialCiphertext: null } });
+      await notifySpringScanStatus(id, report.scanStatus === "COMPLETED" ? "succeeded" : "failed");
       return finished.reportPath;
     } finally {
       clearTimeout(timeout);
@@ -92,8 +94,9 @@ export async function runScanJob(id: string, targetUrl: string) {
       where: { id, status: "RUNNING", cancelRequested: true },
       data: { status: "CANCELLED" },
     });
-    if (cancelled.count) return null;
+    if (cancelled.count) { await notifySpringScanStatus(id, "cancelled"); return null; }
     await store.scan.updateMany({ where: { id, status: "RUNNING" }, data: { status: "FAILED", durationMs: Date.now() - startedAt } });
+    await notifySpringScanStatus(id, "failed");
     throw error;
   }
 }

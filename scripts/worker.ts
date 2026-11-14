@@ -1,6 +1,7 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { db } from "../src/db";
 import { runScanJob } from "../src/scan-job";
+import { notifySpringScanStatus } from "../src/spring-status";
 
 async function main() {
   const store = db();
@@ -23,6 +24,7 @@ async function main() {
         RETURNING id, "targetUrl"
       `;
       if (job) {
+        await notifySpringScanStatus(job.id, "running");
         await runScanJob(job.id, job.targetUrl).catch((error) => console.error(job.id, error));
       } else {
         await delay(500);
