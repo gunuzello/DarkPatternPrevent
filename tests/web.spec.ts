@@ -15,7 +15,11 @@ test.afterEach(async () => {
 
 test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async ({ request }) => {
   const api = origin + "/api/v1/";
-  expect((await request.get(api + "health")).status()).toBe(200);
+  const health = await request.get(api + "health");
+  expect(health.status()).toBe(200);
+  await expect(health.json()).resolves.toMatchObject({
+    status: "ok", service: "baromi", worker: { queued: expect.any(Number), running: expect.any(Number), stale: expect.any(Number) },
+  });
   for (const data of [{ url: riskyUrl, consent: false }, { url: "https://example.invalid", consent: true }]) {
     expect((await request.post(api + "shops", { data })).status()).toBe(400);
   }
