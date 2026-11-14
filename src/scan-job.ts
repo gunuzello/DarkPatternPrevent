@@ -101,6 +101,10 @@ export async function runScanJob(id: string, targetUrl: string) {
         await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
         }
       }
+      // Keep the report and database duration identical so smoke tests and the
+      // UI can explain where time was spent without relying on a second clock.
+      report = { ...report, durationMs: Date.now() - startedAt };
+      await writeFile(join(directory, "report.json"), JSON.stringify(report, null, 2) + "\n");
       const finished = await store.scan.update({
         where: { id, status: "RUNNING", cancelRequested: false },
         data: {
