@@ -73,7 +73,7 @@ export function ScanForm() {
         <label><input type="radio" name="purchasePath" checked={purchasePath === "DIRECT"} onChange={() => setPurchasePath("DIRECT")} /> 바로구매</label>
       </fieldset>
       <button type="button" className="action secondary scan-mode" aria-pressed={dynamic} onClick={() => setDynamic((value) => !value)}>
-        {dynamic ? "전체 구매 흐름 검사 선택됨" : "상품·장바구니·주문서까지 검사"}
+        {dynamic ? "전체 구매 흐름 검사 선택됨" : "소유 확인 후 동적 구매 흐름까지 검사"}
       </button>
       {dynamic && <fieldset>
         <legend>전체 진단 범위</legend>
