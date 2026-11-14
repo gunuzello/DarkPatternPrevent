@@ -26,7 +26,7 @@ type ScanState = {
 
 const labels = {
   QUEUED: "대기 중", RUNNING: "진단 중", COMPLETED: "진단 완료",
-  PARTIAL: "부분 완료", FAILED: "진단 실패", CANCELLED: "진단 중단",
+  PARTIAL: "검증 범위 제한", FAILED: "진단 실패", CANCELLED: "진단 중단",
 };
 
 export function ScanProgress({ id }: { id: string }) {

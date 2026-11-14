@@ -77,7 +77,7 @@ export function ScanReport({ id }: { id: string }) {
   if (!report) return error ? <p role="alert">{error}</p> : <p role="status">결과 불러오는 중…</p>;
   return (
     <>
-      <p className="eyebrow">{report.scanStatus === "COMPLETED" ? "진단 완료" : "부분 완료"}</p>
+      <p className="eyebrow">{report.scanStatus === "COMPLETED" ? "진단 완료" : "검증 범위 제한"}</p>
       <p className="target-url">{report.targetUrl}</p>
       <p><Link href={`/shop/${report.shopId}`}>이 상점의 진단 이력 보기</Link></p>
       <p><a href={`/api/v1/scans/${encodeURIComponent(id)}/report?download=1`} download={`baromi-${id}.json`}>보고서 JSON 다운로드</a></p>
@@ -107,7 +107,7 @@ export function ScanReport({ id }: { id: string }) {
       <ul>{diagnosticSurfaceKinds.map((kind) => <li key={kind}>{diagnosticSurfaceLabels[kind]} · {
         report.surfaceCoverage?.[kind] === "COVERED" ? "검사 완료" : report.surfaceCoverage?.[kind] === "DISCOVERED" ? "후보 발견·상세 미검사" : report.surfaceCoverage?.[kind] === "BLOCKED" ? "접근 실패" : report.surfaceCoverage?.[kind] === "SKIPPED" ? "동적 진단에서 확인" : "경로 미발견"
       }</li>)}</ul>
-      {report.explorationBlocker && <p role="status">탐색 중단: {stageLabels[report.explorationBlocker.stage]}에서 {report.explorationBlocker.action === "ADD_TO_CART" ? "장바구니 담기" : report.explorationBlocker.action === "DIRECT_BUY" ? "바로구매" : "주문서 이동"} 동작을 {report.explorationBlocker.code === "LOGIN_REQUIRED" ? "로그인 화면으로 판단했습니다. 승인된 테스트 계정 또는 로그인 세션이 필요합니다." : report.explorationBlocker.code === "ACTION_AMBIGUOUS" ? `하나로 확정하지 못했습니다(후보 ${report.explorationBlocker.candidateCount}개).` : report.explorationBlocker.code === "ACTION_FAILED" ? "실행했지만 화면 전환을 확인하지 못했습니다." : "찾지 못했습니다."}</p>}
+      {report.explorationBlocker && <p role="status">검증되지 않음: {stageLabels[report.explorationBlocker.stage]}에서 {report.explorationBlocker.action === "ADD_TO_CART" ? "장바구니 담기" : report.explorationBlocker.action === "DIRECT_BUY" ? "바로구매" : "주문서 이동"} 경로를 {report.explorationBlocker.code === "LOGIN_REQUIRED" ? "승인된 테스트 계정 또는 로그인 세션이 없어 확인하지 못했습니다." : report.explorationBlocker.code === "ACTION_AMBIGUOUS" ? `후보 ${report.explorationBlocker.candidateCount}개 중 하나로 확정하지 못했습니다.` : report.explorationBlocker.code === "ACTION_FAILED" ? "동작 후 화면 상태 변화를 확인하지 못했습니다." : "찾지 못했습니다."} 이 항목은 AI 정밀 분석 후보로 남겨졌습니다.</p>}
       {report.surfaceObservations?.length ? <section aria-label="추가 흐름 관찰">
         <h2>추가 흐름 관찰</h2>
         <p>로그인·구독·해지 후보를 읽기 전용으로 확인했습니다. 폼 제출이나 결제·해지 동작은 실행하지 않았습니다.</p>

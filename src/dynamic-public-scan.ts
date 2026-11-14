@@ -9,7 +9,7 @@ import { capture } from "./scan";
 import { scanComparisonVersion } from "./scan-comparison";
 import { detect, type InteractionEvidence, type Snapshot } from "./rules";
 import { feeMentionsFromText } from "./price-text";
-import { collectReviewCandidates, collectSurfaceReviewCandidates } from "./review-candidates";
+import { collectExplorationReviewCandidate, collectReviewCandidates, collectSurfaceReviewCandidates } from "./review-candidates";
 import { classifyReviewCandidates } from "./review-classifier";
 import { structuredProductLinks } from "./structured-product-links";
 import type { TestCredentials } from "./credential-vault";
@@ -233,7 +233,7 @@ export async function scanDynamicPublicShop(
     });
     if (journeyTimer) clearTimeout(journeyTimer);
     interactions.push(...journey.observations.map(({ action }) => action));
-    const reviewCandidates = [...collectReviewCandidates(snapshots), ...collectSurfaceReviewCandidates(journey.surfaceObservations)];
+    const reviewCandidates = [...collectReviewCandidates(snapshots), ...collectSurfaceReviewCandidates(journey.surfaceObservations), ...collectExplorationReviewCandidate(journey.blocker ?? null)];
     const report = {
       comparisonVersion: scanComparisonVersion,
       scanStatus: journey.reached === "checkout" ? "COMPLETED" as const : "PARTIAL" as const,

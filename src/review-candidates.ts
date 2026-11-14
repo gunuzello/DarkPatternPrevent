@@ -3,7 +3,7 @@ import type { SurfaceObservation } from "./purchase-journey";
 
 export type ReviewCandidate = {
   id: string;
-  kind: "FEE_SEMANTICS" | "OPTION_SEMANTICS" | "SURFACE_FLOW";
+  kind: "FEE_SEMANTICS" | "OPTION_SEMANTICS" | "SURFACE_FLOW" | "EXPLORATION_UNVERIFIED";
   stage: Snapshot["stage"] | "surface";
   text: string;
   reason: string;
@@ -40,6 +40,23 @@ export function collectReviewCandidates(snapshots: Snapshot[]): ReviewCandidate[
     }
   }
   return candidates;
+}
+
+export function collectExplorationReviewCandidate(blocker: { stage: Snapshot["stage"]; action: string; code: string; candidateCount: number } | null): ReviewCandidate[] {
+  if (!blocker) return [];
+  const action = blocker.action === "ADD_TO_CART" ? "장바구니 담기" : blocker.action === "DIRECT_BUY" ? "바로구매" : "주문서 이동";
+  return [{
+    id: `review:exploration:${blocker.stage}:${blocker.action.toLowerCase()}`,
+    kind: "EXPLORATION_UNVERIFIED",
+    stage: blocker.stage,
+    text: `${action} 경로를 검증하지 못했습니다.`,
+    reason: blocker.code === "ACTION_AMBIGUOUS"
+      ? `후보 ${blocker.candidateCount}개 중 하나로 확정할 수 없어 구매 경로의 상태와 비용 변화를 검증하지 못했습니다.`
+      : blocker.code === "LOGIN_REQUIRED"
+        ? "승인된 로그인 세션 또는 테스트 계정이 필요해 구매 경로를 검증하지 못했습니다."
+        : "동작을 시도했지만 화면 상태 변화를 확인하지 못해 해당 경로를 검증하지 못했습니다.",
+    evidenceIds: [`evidence:${blocker.stage}`],
+  }];
 }
 
 export function collectSurfaceReviewCandidates(observations: SurfaceObservation[]): ReviewCandidate[] {
