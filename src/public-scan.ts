@@ -18,8 +18,8 @@ export type CollectionFailureCode =
   | "DYNAMIC_RENDER_FAILED";
 
 export const productPath = /\/(?:products?\/(?!(?:list|search)\.(?:html|php)(?:$|\/)|category\/)[^/]+|goods\/[^/]+|items?\/[^/]+|shopdetail(?:\/[^/]+|\.html)|catalogue\/[^/]+_\d+\/index\.html)/i;
-const addToCart = /^(?:장바구니(?:에 담기)?|add to (?:cart|bag|basket))$/i;
-const buyNow = /^(?:바로 구매|구매하기|buy now)$/i;
+const addToCart = /^(?:장바구니(?:\s*에)?\s*담기|add\s+to\s+(?:cart|bag|basket))$/i;
+const buyNow = /^(?:바로\s*구매|구매하기|buy\s*now)$/i;
 
 export async function isProductPage(page: Page, url: string) {
   const schema = await page.locator('[itemtype$="/Product"], script[type="application/ld+json"]').evaluateAll((nodes) =>
@@ -27,8 +27,16 @@ export async function isProductPage(page: Page, url: string) {
   if (schema) return true;
   if (await page.locator('meta[property="og:type"][content="product" i]').count() &&
       await page.locator('meta[property="product:price:amount"][content]').count()) return true;
+  // Client-rendered shops often keep the listing cards mounted while opening
+  // the product detail in-place. Prefer the detail-specific Korean labels and
+  // count only visible controls; hidden card controls must not make the page
+  // look ambiguous.
+  const detailActions = page.locator('button:visible, a:visible').filter({
+    hasText: /장바구니\s*담기|바로\s*구매|구매하기|add\s*to\s*(?:cart|bag)|buy\s*now/i,
+  });
+  if (await detailActions.count() > 0) return true;
   for (const name of [addToCart, buyNow]) {
-    const actions = page.getByRole("button", { name }).or(page.getByRole("link", { name }));
+    const actions = page.getByRole("button", { name }).or(page.getByRole("link", { name })).filter({ visible: true });
     if (await actions.count() === 1) return true;
   }
   // Do not require a platform-specific URL shape. Many storefronts use opaque

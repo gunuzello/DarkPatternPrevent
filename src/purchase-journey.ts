@@ -36,6 +36,18 @@ export async function priceEvidence(response: Response, stage: Stage): Promise<N
 }
 
 async function actionCandidate(page: Page, pattern: RegExp) {
+  // Prefer the explicit product-detail CTA when card-level "담기" buttons
+  // remain mounted behind an in-place detail view.
+  if (pattern === addCart) {
+    const exact = page.getByRole("button", { name: /장바구니\s*담기|add\s*to\s*(?:cart|bag|basket)/i })
+      .or(page.getByRole("link", { name: /장바구니\s*담기|add\s*to\s*(?:cart|bag|basket)/i }))
+      .filter({ visible: true });
+    if (await exact.count() > 0) return { action: exact.last(), count: 1 };
+    const detail = page.locator('button:visible, a:visible').filter({
+      hasText: /장바구니\s*담기|add\s*to\s*(?:cart|bag|basket)/i,
+    });
+    if (await detail.count() === 1) return { action: detail.first(), count: 1 };
+  }
   const candidates = page.getByRole("button", { name: pattern })
     .or(page.getByRole("link", { name: pattern }))
     .filter({ visible: true });
