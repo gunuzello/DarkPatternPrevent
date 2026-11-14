@@ -38,4 +38,4 @@ npm run scan:external
 
 ## 비용 계측
 
-규칙 엔진만 실행한 진단은 AI 호출 0회·추정 비용 0으로 기록한다. 분류기나 외부 모델을 연결할 때만 `BAROMI_AI_INPUT_USD_PER_MILLION`, `BAROMI_AI_OUTPUT_USD_PER_MILLION`을 설정하고 호출별 토큰·모델·목적을 함께 기록한다.
+규칙 엔진만 실행한 진단은 AI 호출 0회·추정 비용 0으로 기록한다. 분류기나 외부 모델을 연결할 때만 `BAROMI_AI_INPUT_USD_PER_MILLION`, `BAROMI_AI_OUTPUT_USD_PER_MILLION`을 설정하고 호출별 토큰·모델·목적을 함께 기록한다. 선택적으로 `BAROMI_AI_MAX_COST_USD`를 설정하면 예상 비용이 상한을 넘는 AI 결과를 완료로 저장하지 않고 실패·비용 정보와 함께 남긴다.
