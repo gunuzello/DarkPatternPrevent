@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { stages, stageLabels, type Stage } from "../../../src/demo";
 import { post, scanRequest } from "../../scan-request";
+import { legalRules } from "../../../src/legal-rules";
 
 type Status = "QUEUED" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED" | "CANCELLED";
 type ScanState = {
@@ -78,6 +79,7 @@ export function ScanProgress({ id }: { id: string }) {
         scan.coverage[stage] === "COVERED" ? (scan.scenario === "public" ? "초기 HTML 확인 · 동적 화면 미검사" : "검사 완료") : scan.coverage[stage] === "SKIPPED" ? "선택 경로에 없음" : scan.coverage[stage] === "BLOCKED" ? "미검사" : "대기"
       }</span></div>)}</div>
       {scan.summary && <div className="scan-mini-summary"><span>위험 신호 <b>{scan.summary.suspected}</b></span><span>검토 필요 <b>{scan.summary.reviewNeeded}</b></span><span>미검사 <b>{scan.summary.notTested}</b></span></div>}
+      <section className="rule-summary" aria-label="진단 항목"><div className="rule-summary-head"><strong>진단 항목</strong><span>총 {Object.keys(legalRules).length}개 유형</span></div><p>각 구매 단계에서 아래 유형을 규칙과 증거로 확인합니다. 이 목록은 구매 단계와 별도의 진단 기능 목록입니다.</p><div className="rule-chips">{Object.entries(legalRules).map(([key, rule]) => <span key={key} title={rule.title}>{rule.title}</span>)}</div></section>
       {active && <button className="action secondary" disabled={pending || scan.cancelRequested} onClick={() => act("cancel")}>진단 중단</button>}
       {reportReady && <Link className="action" href={"/report/" + id}>진단 결과 보기</Link>}
       {!active && !reportReady && <button className="action" disabled={pending} onClick={() => act("retry")}>같은 조건으로 재진단</button>}
