@@ -14,7 +14,7 @@ import type { scanDemo } from "../../../../src/scan";
 import { fetchPublicHtml } from "../../../../src/public-html";
 import { createSiteVerification, hashToken, matchesVerification, verificationDnsPrefix, verificationFile, verificationName } from "../../../../src/site-verification";
 import { encryptCredentials } from "../../../../src/credential-vault";
-import { mirrorSpringScan, mirrorSpringShop, notifySpringScanStatus, readSpringScan, springAuthoritative } from "../../../../src/spring-status";
+import { mirrorSpringScan, mirrorSpringShop, notifySpringScanStatus, readSpringScan, springAuthoritative, springReadiness } from "../../../../src/spring-status";
 import { diagnosticSurfaceKinds, type DiagnosticSurfaceKind } from "../../../../src/diagnostic-surfaces";
 
 type Context = { params: Promise<{ path: string[] }> };
@@ -245,14 +245,16 @@ export async function GET(request: NextRequest, context: Context) {
   if (route.join("/") === "health") {
     try {
       await db().$queryRaw`SELECT 1`;
+      const spring = await springReadiness();
       const [queued, running, stale] = await Promise.all([
         db().scan.count({ where: { status: "QUEUED" } }),
         db().scan.count({ where: { status: "RUNNING" } }),
         db().scan.count({ where: { status: "RUNNING", startedAt: { lt: new Date(Date.now() - 6 * 60 * 1000) } } }),
       ]);
-      const healthy = stale === 0;
+      const healthy = stale === 0 && spring.ready;
       return Response.json({
         status: healthy ? "ok" : "degraded", service: "baromi", version: process.env.APP_VERSION ?? "0.1.0",
+        storage: { mode: spring.configured ? "SPRING_POSTGRES" : "SQLITE_TRANSITION", spring: spring.ready ? "ready" : "unavailable" },
         worker: { queued, running, stale },
       }, { status: healthy ? 200 : 503,
         headers: { "Cache-Control": "no-store" },

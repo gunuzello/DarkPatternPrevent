@@ -1,5 +1,20 @@
 const endpoint = () => process.env.BAROMI_SPRING_API_URL?.replace(/\/$/, "");
 export const springAuthoritative = () => process.env.BAROMI_SPRING_AUTHORITATIVE === "true" && Boolean(endpoint());
+
+export async function springReadiness() {
+  const base = endpoint();
+  if (!base || !springAuthoritative()) return { configured: false, ready: true };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), springTimeoutMs());
+  try {
+    const response = await fetch(`${base}/api/v1/health/readiness`, { signal: controller.signal });
+    return { configured: true, ready: response.ok, status: response.status };
+  } catch {
+    return { configured: true, ready: false, status: 503 };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 const springTimeoutMs = () => {
   const configured = Number(process.env.BAROMI_SPRING_TIMEOUT_MS ?? 800);
   return Number.isFinite(configured) ? Math.min(Math.max(configured, 200), 5_000) : 800;
