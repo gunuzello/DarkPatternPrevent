@@ -35,7 +35,8 @@ export async function runScanJob(id: string, targetUrl: string) {
         throw error;
       }
     }
-    let browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL, timeout: 20_000 });
+    const browserLaunchOptions = { timeout: 20_000, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) };
+    let browser = await chromium.launch(browserLaunchOptions);
     const proxy = requested.executionMode === "DYNAMIC"
       ? await startSafeBrowserProxy().catch(async (error) => { await browser.close(); throw error; })
       : null;
@@ -71,7 +72,7 @@ export async function runScanJob(id: string, targetUrl: string) {
         const message = error instanceof Error ? error.message : "";
         if (requested.executionMode === "STATIC" && /browser|context|Target\.createBrowserContext/i.test(message)) {
           await browser.close().catch(() => {});
-          browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL, timeout: 20_000 });
+          browser = await chromium.launch(browserLaunchOptions);
           report = await scanWithBrowser(browser);
         } else {
         if (requested.executionMode !== "DYNAMIC") throw error;
