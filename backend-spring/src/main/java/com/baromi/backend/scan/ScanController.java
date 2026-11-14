@@ -16,7 +16,13 @@ public class ScanController {
  }
  @PatchMapping("/{id}/status") public ResponseEntity<?> updateStatus(@RequestHeader("X-Baromi-Worker") String token,@PathVariable String id,@RequestBody StatusRequest request){
   if(workerToken.isBlank()||!workerToken.equals(token)||request==null||!isAllowed(request.status())) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error","워커 인증이 필요합니다."));
-  return scans.findById(id).<ResponseEntity<?>>map(scan->{scan.setStatus(request.status()); scans.save(scan); return ResponseEntity.ok(Map.of("scanId",scan.getId(),"status",scan.getStatus()));}).orElseGet(()->ResponseEntity.notFound().build());
+  var existing = scans.findById(id);
+  if (existing.isPresent()) {
+   var scan = existing.get(); scan.setStatus(request.status()); scans.save(scan);
+   return ResponseEntity.ok(Map.of("scanId",scan.getId(),"status",scan.getStatus()));
+  }
+  var imported = scans.save(new ScanEntity(id, null, request.status(), Instant.now()));
+  return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of("scanId", imported.getId(), "status", imported.getStatus(), "imported", true));
  }
  @GetMapping("/{id}") public ResponseEntity<?> get(@RequestHeader("X-Baromi-Owner") String owner,@PathVariable String id){
   return scans.findById(id).filter(s->shops.findByIdAndOwnerHash(s.getShopId(),ShopController.ownerHashForApi(owner)).isPresent()).<ResponseEntity<?>>map(s->ResponseEntity.ok(Map.of("scanId",s.getId(),"shopId",s.getShopId(),"status",s.getStatus()))).orElseGet(()->ResponseEntity.notFound().build());
