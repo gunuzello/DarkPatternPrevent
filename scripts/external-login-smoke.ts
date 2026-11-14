@@ -9,6 +9,10 @@ if (!targetUrl || !username || !password) {
   throw new Error("BAROMI_SMOKE_URL, BAROMI_SMOKE_USERNAME, BAROMI_SMOKE_PASSWORD를 설정해야 합니다.");
 }
 const config = { targetUrl, username, password };
+function safeUrl(value: string) {
+  const parsed = new URL(value);
+  return `${parsed.origin}${parsed.pathname}`;
+}
 if (!scanTarget(config.targetUrl)) {
   throw new Error("BAROMI_SMOKE_URL은 공개 HTTPS 쇼핑몰 주소여야 합니다.");
 }
@@ -39,7 +43,7 @@ async function main() {
   await submit.click();
   await page.waitForTimeout(800);
   if (await page.locator('input[type="password"]:visible').count()) throw new Error("로그인 실패 또는 추가 인증(OTP/CAPTCHA)이 필요합니다.");
-  console.log(JSON.stringify({ ok: true, url: page.url(), title: await page.title() }));
+  console.log(JSON.stringify({ ok: true, url: safeUrl(page.url()), title: await page.title() }));
   } finally {
     await browser.close();
   }
