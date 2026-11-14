@@ -343,6 +343,7 @@ test("사이트 확인 메타 태그는 속성 순서와 따옴표가 달라도 
 test("동적 수집 실패는 추가 인증과 일반 탐색 실패를 구분한다", async () => {
   const { classifyDynamicFailure } = await import("../src/scan-failure");
   expect(classifyDynamicFailure("로그인에 실패했거나 추가 인증이 필요합니다.")).toBe("AUTH_CHALLENGE");
+  expect(classifyDynamicFailure("page.goto: net::ERR_EMPTY_RESPONSE")).toBe("FETCH_FAILED");
   expect(classifyDynamicFailure("동적 구매 흐름 시간 초과(120000ms)")).toBe("DYNAMIC_JOURNEY_FAILED");
 });
 
