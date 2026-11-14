@@ -64,6 +64,14 @@ test("사은품·무료 혜택의 기본 표시는 유료 사전선택으로 오
   expect(detect([product])).toEqual([]);
 });
 
+test("가격이 없어도 자동연장·마케팅 동의 기본 선택을 기록한다", () => {
+  const product = {
+    stage: "product" as const, url: "https://shop.test/p/1", screenshot: "", priceLines: [], textLines: [], fees: [], options: [],
+    precheckedSignals: [{ label: "VIP 멤버십 자동 연장 결제 동의", bounds: { x: 0, y: 0, width: 10, height: 10 } }],
+  };
+  expect(detect([product]).map(({ type }) => type)).toEqual(["PRESELECTION"]);
+});
+
 test("위험 데모의 바로구매 경로는 장바구니를 선택 경로에서 제외한다", async ({ browser }, info) => {
   const report = await scanDemo(browser, origin, "risky", info.outputPath("direct"), undefined, "DESKTOP", "DIRECT");
   expect(report.purchasePath).toBe("DIRECT");

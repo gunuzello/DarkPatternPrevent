@@ -93,6 +93,15 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
     /(?:[₩$£€]\s*\d[\d,.]*|\d[\d,.]*\s*원)/.test(line),
   ).slice(0, 100);
   const priceLines = [...new Set([...displayedPrices, ...textPrices, ...textFees.map(({ label }) => label)])];
+  const precheckedSignals = await main.locator('input[type="checkbox"]:checked, [role="checkbox"][aria-checked="true"], [role="switch"][aria-checked="true"]').evaluateAll((nodes) => nodes.flatMap((node) => {
+    const control = node as HTMLElement;
+    const label = control instanceof HTMLInputElement
+      ? Array.from(control.labels ?? [], (item) => item.innerText.trim()).join(" ")
+      : control.getAttribute("aria-label") ?? control.innerText.trim();
+    if (!/(?:마케팅|광고|정보\s*수신|자동\s*연장|자동\s*결제|멤버십|newsletter|marketing|auto.?renew)/i.test(label)) return [];
+    const { x, y, width, height } = control.getBoundingClientRect();
+    return [{ label, bounds: { x: x + window.scrollX, y: y + window.scrollY, width, height }, location: { frame: "main", visible: true, source: "dom" as const } }];
+  }));
   const screenshot = stage + ".png";
   const origin = fullPage ? { x: 0, y: 0 } : await page.evaluate(() => ({ x: scrollX, y: scrollY }));
   const sensitiveFields = page.locator([
@@ -108,7 +117,7 @@ export async function capture(page: Page, stage: Stage, directory: string, main:
   // PNG IHDR stores the rendered width and height as unsigned big-endian integers.
   const screenshotArea = { ...origin, width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
   const capturedAt = new Date().toISOString();
-  return { evidenceId: `evidence:${stage}`, stage, url, screenshot, screenshotArea, capturedAt, priceLines, textLines, options, fees };
+  return { evidenceId: `evidence:${stage}`, stage, url, screenshot, screenshotArea, capturedAt, priceLines, textLines, options, fees, precheckedSignals };
 }
 
 export async function scanDemo(

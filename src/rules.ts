@@ -21,6 +21,7 @@ export type Snapshot = {
   textLines?: string[];
   options: Option[];
   fees: Fee[];
+  precheckedSignals?: { label: string; bounds: Bounds; location?: EvidenceLocation }[];
 };
 export type InteractionEvidence = {
   id: string;
