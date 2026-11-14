@@ -6,6 +6,10 @@ type ClaimedScan = {
   purchasePath: string | null;
 };
 
+export function isClaimCompatible(local: { status: string; targetUrl: string } | null, claimed: Pick<ClaimedScan, "targetUrl">) {
+  return local?.status === "QUEUED" && local.targetUrl === claimed.targetUrl;
+}
+
 export async function claimSpringScan(): Promise<ClaimedScan | null> {
   const base = process.env.BAROMI_SPRING_API_URL?.replace(/\/$/, "");
   const token = process.env.BAROMI_WORKER_TOKEN;

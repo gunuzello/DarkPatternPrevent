@@ -2,7 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { db } from "../src/db";
 import { runScanJob } from "../src/scan-job";
 import { notifySpringScanStatus } from "../src/spring-status";
-import { claimSpringScan, recoverSpringScans } from "../src/spring-queue";
+import { claimSpringScan, isClaimCompatible, recoverSpringScans } from "../src/spring-queue";
 
 async function main() {
   const store = db();
@@ -20,7 +20,7 @@ async function main() {
       const springJob = await claimSpringScan().catch((error) => { console.warn(error instanceof Error ? error.message : error); return null; });
       if (springJob) {
         const local = await store.scan.findUnique({ where: { id: springJob.scanId }, select: { status: true, targetUrl: true } });
-        const targetMatches = local?.targetUrl === springJob.targetUrl;
+        const targetMatches = isClaimCompatible(local, springJob);
         const started = targetMatches
           ? await store.scan.updateMany({ where: { id: springJob.scanId, status: "QUEUED" }, data: { status: "RUNNING", startedAt: new Date(), durationMs: null } })
           : { count: 0 };
