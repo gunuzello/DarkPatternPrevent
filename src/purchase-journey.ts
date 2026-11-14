@@ -48,6 +48,14 @@ async function actionCandidate(page: Page, pattern: RegExp) {
     });
     if (await detail.count() === 1) return { action: detail.first(), count: 1 };
   }
+  if (pattern === checkout) {
+    // Header links such as "주문/배송조회" also contain 주문, but they do
+    // not advance the current cart. Prefer the unambiguous cart CTA instead.
+    const orderCta = page.getByRole("button", { name: /(?:주문하기|결제하기|checkout|proceed\s+to\s+checkout)/i })
+      .or(page.getByRole("link", { name: /(?:주문하기|결제하기|checkout|proceed\s+to\s+checkout)/i }))
+      .filter({ visible: true });
+    if (await orderCta.count() === 1) return { action: orderCta.first(), count: 1 };
+  }
   const candidates = page.getByRole("button", { name: pattern })
     .or(page.getByRole("link", { name: pattern }))
     .filter({ visible: true });
@@ -69,9 +77,20 @@ async function actionCandidate(page: Page, pattern: RegExp) {
 
 async function prepareRequiredOptions(page: Page, stage: Stage): Promise<InteractionEvidence[]> {
   const evidence: InteractionEvidence[] = [];
-  const selects = page.locator("select[required]:visible");
+  // A number of storefronts mark mandatory options visually ("*" or
+  // "필수") without emitting the HTML required attribute. Inspect only
+  // visible selects with an empty placeholder and a nearby mandatory marker;
+  // optional selectors remain untouched.
+  const selects = page.locator("select:visible");
   for (let index = 0; index < Math.min(await selects.count(), 12); index++) {
     const select = selects.nth(index);
+    const nearbyText = await select.evaluate((node) => {
+      const parent = node.parentElement;
+      return [parent?.innerText, parent?.parentElement?.innerText].filter(Boolean).join(" ");
+    }).catch(() => "");
+    const mandatory = await select.getAttribute("required") !== null ||
+      /(?:필수|required|\*)/i.test(nearbyText);
+    if (!mandatory) continue;
     if (await select.isDisabled() || await select.inputValue()) continue;
     const option = await select.locator("option:not([disabled])").evaluateAll((items) => items
       .map((item) => ({ value: (item as HTMLOptionElement).value, text: item.textContent?.trim() ?? "" }))
