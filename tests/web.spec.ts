@@ -75,7 +75,12 @@ test("URL과 동의를 검증하고 대기 중인 진단을 중단한다", async
 test("웹에서 진단하고 증거를 확인한 후 같은 조건으로 재진단한다", async ({ page, playwright }) => {
   test.setTimeout(120_000);
   worker = spawn(process.execPath, ["--import", "tsx", "scripts/worker.ts"], {
-    env: process.env,
+    env: {
+      ...process.env,
+      BAROMI_SPRING_QUEUE_ENABLED: "false",
+      BAROMI_SPRING_API_URL: "",
+      DEMO_ORIGIN: origin,
+    },
     stdio: "inherit",
     detached: true,
   });
