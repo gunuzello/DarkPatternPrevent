@@ -16,4 +16,6 @@ spring:
 baromi:
   worker-token: ${BAROMI_WORKER_TOKEN:}
   web-origins: ${BAROMI_WEB_ORIGINS:}
+  retention:
+    cleanup-ms: ${BAROMI_RETENTION_CLEANUP_MS:3600000}
 
