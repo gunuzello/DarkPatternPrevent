@@ -68,12 +68,17 @@ export async function runScanJob(id: string, targetUrl: string) {
         const dynamicTimeoutMs = requested.executionMode === "DYNAMIC"
           ? Math.min(Math.max(Number(process.env.DYNAMIC_SCAN_TIMEOUT_MS ?? 90_000), 30_000), 180_000)
           : 0;
-        report = dynamicTimeoutMs
-          ? await Promise.race([
-            scanPromise,
-            new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`동적 전체 탐색 시간 초과(${dynamicTimeoutMs}ms)`)), dynamicTimeoutMs)),
-          ])
-          : await scanPromise;
+        let dynamicTimer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          report = dynamicTimeoutMs
+            ? await Promise.race([
+              scanPromise,
+              new Promise<never>((_, reject) => { dynamicTimer = setTimeout(() => reject(new Error(`동적 전체 탐색 시간 초과(${dynamicTimeoutMs}ms)`)), dynamicTimeoutMs); }),
+            ])
+            : await scanPromise;
+        } finally {
+          if (dynamicTimer) clearTimeout(dynamicTimer);
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : "";
         if (requested.executionMode === "STATIC" && /browser|context|Target\.createBrowserContext/i.test(message)) {

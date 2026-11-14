@@ -120,13 +120,13 @@ export async function scanDynamicPublicShop(
       }));
       const candidates = new Set<string>();
       const contexts = new Map<string, string>();
-      const ranked = [...links, ...structuredLinks, ...metadataLinks].sort((left, right) => {
-        const score = (item: { href: string; context: string }) =>
-          (/(?:product|상품|detail|item|goods|sku)/i.test(item.href) ? 4 : 0) +
-          (/(?:\d[\d,]*\s*원|₩)/.test(item.context) ? 3 : 0) +
-          (/(?:상품|product|item|goods)/i.test(item.context) ? 2 : 0);
-        return score(right) - score(left);
-      });
+      const candidateScore = (item: { href: string; context: string }) =>
+        (/(?:product|상품|detail|item|goods|sku)/i.test(item.href) ? 4 : 0) +
+        (/(?:\d[\d,]*\s*원|₩)/.test(item.context) ? 3 : 0) +
+        (/(?:상품|product|item|goods)/i.test(item.context) ? 2 : 0);
+      const ranked = [...links, ...structuredLinks, ...metadataLinks]
+        .filter((item) => candidateScore(item) >= 3)
+        .sort((left, right) => candidateScore(right) - candidateScore(left));
       for (const { href, context } of ranked) {
         let candidate: URL;
         try { candidate = new URL(href, page.url()); } catch { continue; }
@@ -135,7 +135,7 @@ export async function scanDynamicPublicShop(
             [...candidate.searchParams.keys()].some((key) => /^(?:q|query|keyword|search|action|add-to-cart|redirect|return_url)$/i.test(key))) continue;
         candidates.add(candidate.href);
         if (!contexts.has(candidate.href)) contexts.set(candidate.href, context);
-        if (candidates.size === 8) break;
+        if (candidates.size === 4) break;
       }
       const listingScreenshot = "listing.png";
       await page.screenshot({ path: join(directory, listingScreenshot), fullPage: false, scale: "css" });
@@ -160,7 +160,18 @@ export async function scanDynamicPublicShop(
         // Some modern React shops render product cards as clickable divs and
         // expose no product href. Select one card with a visible price, then
         // verify that the click actually opened a product surface.
-        const cards = page.locator('article:visible, li:visible, [class*="cursor-pointer"]:visible').filter({ hasText: /(?:₩|\d[\d,]*\s*원)/ });
+        if (page.url() !== listingUrl) {
+          await page.goto(listingUrl, { waitUntil: "domcontentloaded", timeout: 5_000 }).catch(() => undefined);
+          await page.waitForTimeout(150);
+        }
+        const clickableCards = page.locator('[class*="cursor-pointer"]:visible').filter({
+          hasText: /(?:₩|\d[\d,]*\s*원)/,
+        });
+        const semanticCards = page.locator('article:visible, li:visible').filter({
+          hasText: /(?:₩|\d[\d,]*\s*원)/,
+          has: page.getByRole("button", { name: /담기|add\s*to/i }),
+        });
+        const cards = await clickableCards.count() ? clickableCards : semanticCards;
         for (let index = 0; index < Math.min(await cards.count(), 6); index++) {
           const card = cards.nth(index);
           if (!await card.isVisible().catch(() => false)) continue;
@@ -230,7 +241,7 @@ export async function scanDynamicPublicShop(
       explorationBlocker: journey.blocker ?? null,
       surfaceDestinations: journey.surfaceDestinations,
       surfaceObservations: journey.surfaceObservations,
-      stageTimingsMs,
+      stageTimingsMs: { ...stageTimingsMs, total: Date.now() - stageStartedAt },
       networkPriceEvidence: journey.network,
       priceLedger: buildPriceLedger(snapshots, journey.network, firstPriceExposure),
       reviewCandidates,

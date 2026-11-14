@@ -109,12 +109,17 @@ async function prepareRequiredOptions(page: Page, stage: Stage): Promise<Interac
 
 async function clickAndSettle(page: Page, action: Locator) {
   const before = page.url();
-  await Promise.all([
-    page.waitForURL((url) => url.href !== before, { timeout: 3_000 }).catch(() => null),
-    action.click(),
+  const urlChanged = page.waitForURL((url) => url.href !== before, { timeout: 2_000 })
+    .then(() => true).catch(() => false);
+  await action.click();
+  // React storefronts commonly update drawers/modals without navigation. Do
+  // not pay the full navigation timeout when the DOM settles in place.
+  const navigated = await Promise.race([
+    urlChanged,
+    page.waitForTimeout(600).then(() => false),
   ]);
-  await page.waitForLoadState("domcontentloaded", { timeout: 4_000 }).catch(() => {});
-  await page.waitForTimeout(300);
+  if (navigated) await page.waitForLoadState("domcontentloaded", { timeout: 2_000 }).catch(() => {});
+  await page.waitForTimeout(150);
 }
 
 /** Close a blocking modal only when its visible dialog exposes one unambiguous
@@ -139,6 +144,18 @@ async function isCheckoutLike(page: Page) {
   const hasCheckoutCopy = /(?:주문서|주문\s*정보|결제\s*정보|배송\s*정보|checkout|payment|place\s+order)/i.test(text);
   const hasCustomerForm = await page.locator('input:not([type="hidden"]), select, textarea').count() > 0;
   return hasCheckoutCopy && hasCustomerForm;
+}
+
+async function isCartLike(page: Page) {
+  const path = new URL(page.url()).pathname;
+  const text = (await page.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ");
+  if (/(?:장바구니|카트|cart|bag|basket)\s*(?:\(|:)?\s*0\b|(?:장바구니|카트).{0,12}(?:비어|없습니다)|(?:cart|bag|basket).{0,12}(?:empty|no items)/i.test(text)) return false;
+  const heading = page.getByRole("heading", { name: /장바구니|카트|cart|bag|basket/i }).filter({ visible: true });
+  const surface = /(?:cart|bag|basket)/i.test(path) || await heading.count() > 0;
+  if (!surface) return false;
+  const checkoutAction = page.getByRole("button", { name: checkout })
+    .or(page.getByRole("link", { name: checkout })).filter({ visible: true });
+  return await checkoutAction.count() > 0 || /(?:소계|합계|총\s*상품|수량|삭제|subtotal|total|quantity|remove)/i.test(text);
 }
 
 async function discoverSurfaceDestinations(page: Page) {
@@ -175,29 +192,26 @@ export type SurfaceObservation = {
 
 async function inspectSurfaceDestinations(page: Page, destinations: { kind: SurfaceObservation["kind"]; href: string }[]): Promise<SurfaceObservation[]> {
   const origin = new URL(page.url()).origin;
-  const observations: SurfaceObservation[] = [];
-  for (const destination of destinations.slice(0, 4)) {
+  return Promise.all(destinations.slice(0, 4).map(async (destination, index): Promise<SurfaceObservation> => {
     if (new URL(destination.href).origin !== origin) {
-      observations.push({ evidenceId: `surface:${destination.kind.toLowerCase()}:${observations.length}`, kind: destination.kind, url: destination.href, status: null, title: "", text: "", outcome: "CROSS_ORIGIN" });
-      continue;
+      return { evidenceId: `surface:${destination.kind.toLowerCase()}:${index}`, kind: destination.kind, url: destination.href, status: null, title: "", text: "", outcome: "CROSS_ORIGIN" };
     }
     const probe = await page.context().newPage();
     try {
-      const response = await probe.goto(destination.href, { waitUntil: "domcontentloaded", timeout: 5_000 });
-      await probe.waitForLoadState("networkidle", { timeout: 1_000 }).catch(() => {});
-      observations.push({
-        evidenceId: `surface:${destination.kind.toLowerCase()}:${observations.length}`, kind: destination.kind, url: destination.href, status: response?.status() ?? null,
+      const response = await probe.goto(destination.href, { waitUntil: "domcontentloaded", timeout: 3_500 });
+      await probe.waitForTimeout(150);
+      return {
+        evidenceId: `surface:${destination.kind.toLowerCase()}:${index}`, kind: destination.kind, url: destination.href, status: response?.status() ?? null,
         title: await probe.title().catch(() => ""),
         text: (await probe.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").trim().slice(0, 1_000),
         outcome: response?.ok() ? "OBSERVED" : "FETCH_FAILED",
-      });
+      };
     } catch {
-      observations.push({ evidenceId: `surface:${destination.kind.toLowerCase()}:${observations.length}`, kind: destination.kind, url: destination.href, status: null, title: "", text: "", outcome: "FETCH_FAILED" });
+      return { evidenceId: `surface:${destination.kind.toLowerCase()}:${index}`, kind: destination.kind, url: destination.href, status: null, title: "", text: "", outcome: "FETCH_FAILED" };
     } finally {
       await probe.close().catch(() => {});
     }
-  }
-  return observations;
+  }));
 }
 
 export type JourneyObservation = {
@@ -291,6 +305,10 @@ export async function explorePurchaseJourney(
     await dismissBlockingDialog(page);
     await clickAndSettle(page, cartAction.action);
   }
+  if (!await isCartLike(page)) return {
+    observations, network, surfaceDestinations, surfaceObservations, reached: "product" as Stage,
+    blocker: { stage: "product" as Stage, code: "ACTION_FAILED" as const, action: "ADD_TO_CART" as const, candidateCount: 1 },
+  };
   stage = "cart";
   await refreshSurface();
   await onStage?.(stage);

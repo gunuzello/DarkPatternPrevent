@@ -44,9 +44,12 @@ export async function isProductPage(page: Page, url: string) {
   // The fallback therefore relies on the page's semantic signals instead.
   if (await page.getByRole("heading", { level: 1 }).count() !== 1) return false;
   const text = await page.locator("body").innerText();
-  return /(?:[₩$£€]\s*\d|\d[\d,.]*\s*원)/.test(text) &&
-    (await page.getByRole("button", { name: /(?:구매|장바구니|담기|buy|cart|add)/i }).count() > 0 ||
-      await page.getByRole("link", { name: /(?:구매|장바구니|담기|buy|cart|add)/i }).count() > 0);
+  const genericActions = page.getByRole("button", { name: /(?:구매|장바구니|담기|buy|cart|add)/i })
+    .or(page.getByRole("link", { name: /(?:구매|장바구니|담기|buy|cart|add)/i }))
+    .filter({ visible: true });
+  // A listing commonly has one H1, prices and many card-level add buttons.
+  // Only a unique generic CTA is strong enough to classify it as a detail.
+  return /(?:[₩$£€]\s*\d|\d[\d,.]*\s*원)/.test(text) && await genericActions.count() === 1;
 }
 
 export async function scanPublicShop(

@@ -20,16 +20,24 @@ const repeatCount = Number.isFinite(requestedRepeats) ? Math.min(Math.max(Math.f
 const requestedHardTimeout = Number(process.env.BAROMI_SMOKE_HARD_TIMEOUT_MS ?? "360000");
 const hardTimeoutMs = Number.isFinite(requestedHardTimeout) ? Math.min(Math.max(Math.floor(requestedHardTimeout), 30_000), 900_000) : 360_000;
 
-type ScanSummary = { scanStatus: string; reached: string | null; collectionFailure: string | null; collectionFailureCode: string | null; findings: string[] };
+type ScanSummary = {
+  scanStatus: string; reached: string | null; collectionFailure: string | null; collectionFailureCode: string | null;
+  explorationBlocker: unknown; stageTimingsMs: Record<string, number>; durationMs: number; findings: string[];
+};
 async function summarize(reportPath: string): Promise<ScanSummary> {
   const report = JSON.parse(await readFile(reportPath, "utf8")) as {
-    scanStatus?: string; snapshots?: { stage: string }[]; collectionFailure?: string | null; collectionFailureCode?: string | null; findings?: { type: string; stage: string; reason: string }[];
+    scanStatus?: string; snapshots?: { stage: string }[]; collectionFailure?: string | null; collectionFailureCode?: string | null;
+    explorationBlocker?: unknown; stageTimingsMs?: Record<string, number>; durationMs?: number;
+    findings?: { type: string; stage: string; reason: string }[];
   };
   return {
     scanStatus: report.scanStatus ?? "UNKNOWN",
     reached: report.snapshots?.at(-1)?.stage ?? null,
     collectionFailure: report.collectionFailure ?? null,
     collectionFailureCode: report.collectionFailureCode ?? null,
+    explorationBlocker: report.explorationBlocker ?? null,
+    stageTimingsMs: report.stageTimingsMs ?? {},
+    durationMs: report.durationMs ?? 0,
     findings: (report.findings ?? []).map(({ type, stage, reason }) => `${type}:${stage}:${reason}`).sort(),
   };
 }

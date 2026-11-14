@@ -305,10 +305,28 @@ test("동적 탐색은 로그인 화면을 별도 미검사 사유로 기록한�
 
 test("동적 탐색은 input submit 구매 동작도 의미 이름으로 인식한다", async ({ page }) => {
   const { explorePurchaseJourney } = await import("../src/purchase-journey");
-  await page.setContent('<input type="submit" value="장바구니에 담기">');
+  await page.route("https://input.example/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    const html = path === "/product"
+      ? '<input type="submit" value="장바구니에 담기" onclick="location=\'/cart\'">'
+      : '<h1>장바구니 (1)</h1><button>수량 1</button>';
+    return route.fulfill({ contentType: "text/html; charset=utf-8", body: html });
+  });
+  await page.goto("https://input.example/product");
   const result = await explorePurchaseJourney(page);
   expect(result.blocker?.action).toBe("OPEN_CHECKOUT");
   expect(result.blocker?.code).toBe("ACTION_NOT_FOUND");
+});
+
+test("장바구니 담기 뒤 실제 장바구니가 비어 있으면 완료로 표시하지 않는다", async ({ page }) => {
+  const { explorePurchaseJourney } = await import("../src/purchase-journey");
+  await page.setContent(`
+    <button onclick="document.querySelector('#cart').hidden=false">장바구니에 담기</button>
+    <section id="cart" hidden><h2>장바구니 (0)</h2><p>장바구니가 비어 있습니다.</p></section>
+  `);
+  const result = await explorePurchaseJourney(page);
+  expect(result.reached).toBe("product");
+  expect(result.blocker).toMatchObject({ stage: "product", code: "ACTION_FAILED", action: "ADD_TO_CART" });
 });
 
 test("바로구매 경로는 장바구니를 거치지 않고 주문서 직전에서 멈춘다", async ({ page }) => {
